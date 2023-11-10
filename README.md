@@ -1,5 +1,7 @@
-VR Performance Toolkit
-======================
+VR Performance Toolkit RavenSystem's Fork
+=========================================
+
+In an effort to continue this project, I have created this fork with updated components and SDKs.
 
 Performance-oriented collection of mods for VR games.
 
@@ -30,10 +32,10 @@ Supported graphics APIs:
 
 ## Installation
 
-Extract `dxgi.dll` and `vrperfkit.yml` next to the game's main executable.
+Extract `dxgi.dll` and `vrperfkit_RSF.yml` next to the game's main executable.
 For Unreal Engine games, this is typically `<Game>Game\Binaries\Win64\<Game>Game-Win64-Shipping.exe`.
 
-Edit the `vrperfkit.yml` config file to your heart's content. The available options are
+Edit the `vrperfkit_RSF.yml` config file to your heart's content. The available options are
 documented inside the config file; you'll have to experiment with them and try which options
 work for your particular game.
 
@@ -42,8 +44,8 @@ work for your particular game.
 Clone the repository and init all submodules.
 
 ```
-git clone https://github.com/fholger/vrperfkit.git
-cd vrperfkit
+git clone https://github.com/RavenSystem/VRPerfKit_RSF.git
+cd VRPerfKit_RSF
 git submodule init
 git submodule update --recursive
 ```
