@@ -49,7 +49,7 @@ RWTexture2D<unorm float4> out_texture : register(u0);
 
 void DirectCopy(uint2 blockIdx, uint threadIdx)
 {
-	const float4 mul = float4(1, 1, 1, 1) - debugMode * float4(0, 0.3, 0.3, 0);
+	const float4 mul = float4(1, 1, 1, 1);
 	const int dstBlockX = NIS_BLOCK_WIDTH * blockIdx.x;
 	const int dstBlockY = NIS_BLOCK_HEIGHT * blockIdx.y;
 	for (uint k = threadIdx; k < NIS_BLOCK_WIDTH * NIS_BLOCK_HEIGHT; k += NIS_THREAD_GROUP_SIZE)

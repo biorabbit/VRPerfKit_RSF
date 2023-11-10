@@ -86,15 +86,20 @@ namespace {
 		vrperfkit::g_basePath = vrperfkit::g_dllPath.parent_path();
 		vrperfkit::g_executablePath = vrperfkit::GetModulePath(nullptr);
 
-		vrperfkit::OpenLogFile(vrperfkit::g_basePath / "vrperfkit.log");
-		LOG_INFO << "======================";
-		LOG_INFO << "VR Performance Toolkit";
-		LOG_INFO << "======================\n";
+		vrperfkit::OpenLogFile(vrperfkit::g_basePath / "vrperfkit_RSF.log");
+		LOG_INFO << "===============================";
+		LOG_INFO << "VR Performance Toolkit RSF v1.0";
+		LOG_INFO << "===============================\n";
 
-		vrperfkit::LoadConfig(vrperfkit::g_basePath / "vrperfkit.yml");
-		vrperfkit::LoadHotkeys(vrperfkit::g_basePath / "vrperfkit.yml");
+		vrperfkit::LoadConfig(vrperfkit::g_basePath / "vrperfkit_RSF.yml");
+		vrperfkit::LoadHotkeys(vrperfkit::g_basePath / "vrperfkit_RSF.yml");
 		vrperfkit::PrintCurrentConfig();
 		vrperfkit::PrintHotkeys();
+
+		if (LoadLibraryA("dxgi_ori.dll")) {
+			LOG_INFO << "External DLL loaded: dxgi_ori.dll";
+			Sleep(5 * 1000);
+		}
 
 		vrperfkit::hooks::Init();
 		vrperfkit::hooks::InstallHook("LoadLibraryA", (void*)&LoadLibraryA, (void*)&Hook_LoadLibraryA);

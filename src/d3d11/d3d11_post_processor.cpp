@@ -6,7 +6,6 @@
 #include "d3d11_nis_upscaler.h"
 #include "logging.h"
 #include "hooks.h"
-#include "ScreenGrab11.h"
 
 #include <sstream>
 
@@ -17,11 +16,11 @@ namespace vrperfkit {
 
 	bool D3D11PostProcessor::Apply(const D3D11PostProcessInput &input, Viewport &outputViewport) {
 		bool didPostprocessing = false;
-
+/*
 		if (g_config.debugMode) {
 			StartProfiling();
 		}
-
+*/
 		if (g_config.upscaling.enabled) {
 			try {
 				D3D11State previousState;
@@ -61,15 +60,11 @@ namespace vrperfkit {
 				g_config.upscaling.enabled = false;
 			}
 		}
-
+/*
 		if (g_config.debugMode) {
 			EndProfiling();
 		}
-
-		if (g_config.captureOutput && input.eye == 0) {
-			SaveTextureToFile(didPostprocessing ? input.outputTexture : input.inputTexture);
-		}
-
+*/
 		return didPostprocessing;
 	}
 
@@ -132,28 +127,7 @@ namespace vrperfkit {
 		}
 	}
 
-	extern std::filesystem::path g_basePath;
-	void D3D11PostProcessor::SaveTextureToFile(ID3D11Texture2D *texture) {
-		g_config.captureOutput = false;
-
-		static char timeBuf[16];
-		std::time_t now = std::time(nullptr);
-		std::strftime(timeBuf, sizeof(timeBuf), "%Y%m%d_%H%M%S", std::localtime(&now));
-
-		std::wostringstream filename;
-		filename << "capture_" << timeBuf
-				 << "_" << MethodToString(g_config.upscaling.method).c_str()
-				 << "_s" << int(roundf(g_config.upscaling.sharpness * 100))
-				 << "_r" << int(roundf(g_config.upscaling.radius * 100))
-				 << ".dds";
-		std::filesystem::path filePath = g_basePath / filename.str();
-
-		HRESULT result = DirectX::SaveDDSTextureToFile( context.Get(), texture, filePath.c_str() );
-		if (FAILED(result)) {
-			LOG_ERROR << "Error taking screen capture: " << std::hex << result << std::dec;
-		}
-	}
-
+/*
 	void D3D11PostProcessor::CreateProfileQueries() {
 		for (auto &profileQuery : profileQueries) {
 			D3D11_QUERY_DESC qd;
@@ -203,4 +177,5 @@ namespace vrperfkit {
 			}
 		}
 	}
+*/
 }

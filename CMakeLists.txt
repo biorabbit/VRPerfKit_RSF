@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.12.0)
 
 project(VRPerfKit)
 enable_language(C CXX)
@@ -67,8 +67,6 @@ set(D3D11_FILES
 	src/d3d11/d3d11_injector.cpp
 	src/d3d11/d3d11_variable_rate_shading.h
 	src/d3d11/d3d11_variable_rate_shading.cpp
-	src/d3d11/ScreenGrab11.h
-	src/d3d11/ScreenGrab11.cpp
 )
 source_group("d3d11" FILES ${D3D11_FILES})
 

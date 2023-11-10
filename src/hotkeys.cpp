@@ -65,11 +65,6 @@ namespace {
 		LOG_INFO << "Fixed foveated now favors " << (g_config.ffr.favorHorizontal ? "horizontal" : "vertical") << " resolution";
 	}
 
-	void CaptureOutput() {
-		g_config.captureOutput = true;
-		LOG_INFO << "Capturing output...";
-	}
-
 	struct HotkeyDefinition {
 		std::string name;
 		std::function<void()> action;
@@ -87,7 +82,6 @@ namespace {
 			{"toggleUpscalingApplyMipBias", ToggleUpscalingApplyMipBias},
 			{"toggleFixedFoveated", ToggleFixedFoveated},
 			{"toggleFFRFavorHorizontal", ToggleFFRFavorHorizontal},
-			{"captureOutput", CaptureOutput},
 		};
 	}
 

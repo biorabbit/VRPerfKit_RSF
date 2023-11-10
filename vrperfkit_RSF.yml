@@ -1,3 +1,11 @@
+# dxgi.dll: If game uses its own dxgi.dll or other post-processor library, like
+# Reshade (reshade.me), rename current "dxgi.dll" file to "dxgi_ori.dll" before copying
+# dxgi.dll file from this VR Performance Toolkit. dxgi_ori.dll file will be lodaded
+# through this toolkit automatically. For example, if you want to use Reshade, first
+# install it, rename created "dxgi.dll" file to "dxgi_ori.dll", and then copy "dxgi.dll"
+# from this toolkit. Reshade and VRPerfToolkit will work together. VRPerfToolkit will
+# be aplied after Reshase.
+
 # Upscaling: render the game at a lower resolution (thus saving performance),
 # then upscale the image to the target resolution to regain some of the lost
 # visual fidelity.
@@ -8,18 +16,18 @@ upscaling:
   # - fsr (AMD FidelityFX Super Resolution)
   # - nis (NVIDIA Image Scaling)
   # - cas (AMD FidelityFX Contrast Adaptive Sharpening)
-  method: cas
+  method: nis
   # control how much the render resolution is lowered. The renderScale factor is
   # applied to both width and height. So if renderScale is set to 0.5 and you
   # have a resolution of 2000x2000 configured in SteamVR, the resulting render
   # resolution is 1000x1000.
   # NOTE: this is different from how render scale works in SteamVR! A SteamVR
   # render scale of 0.5 would be equivalent to renderScale 0.707 in this mod!
-  renderScale: 0.9
+  renderScale: 0.866
   # configure how much the image is sharpened during upscaling.
   # This parameter works differently for each of the upscaling methods, so you
   # will have to tweak it after you have chosen your preferred upscaling method.
-  sharpness: 0.7
+  sharpness: 0.20
   # Performance optimization: only apply the (more expensive) upscaling method
   # to an inner area of the rendered image and use cheaper bilinear sampling on
   # the rest of the image. The radius parameter determines how large the area
@@ -28,7 +36,7 @@ upscaling:
   # to visualize the size of the circle.
   # Note: to disable this optimization entirely, choose an arbitrary high value
   # (e.g. 100) for the radius.
-  radius: 0.6
+  radius: 1.00
   # when enables, applies a MIP bias to texture sampling in the game. This will
   # make the game treat texture lookups as if it were rendering at the higher
   # target resolution, which can improve image quality a little bit. However,
@@ -50,11 +58,11 @@ fixedFoveated:
   # enable (true) or disable (false) fixed foveated rendering
   enabled: true
   # configure the end of the inner circle, which is the area that will be rendered at full resolution
-  innerRadius: 0.6
+  innerRadius: 0.70
   # configure the end of the second ring, which will be rendered at half resolution
-  midRadius: 0.8
+  midRadius: 0.85
   # configure the end of the third ring, which will be rendered at 1/4th resolution
-  outerRadius: 1.0
+  outerRadius: 1.00
   # the remainder of the image will be rendered at 1/16th resolution
 
   # when reducing resolution, prefer to keep horizontal (true) or vertical (false) resolution?
@@ -80,7 +88,7 @@ debugMode: false
 hotkeys:
   # enable or disable hotkeys; if they cause conflicts with ingame hotkeys, you can either
   # configure them to different keys or just turn them off
-  enabled: true
+  enabled: false
   # toggles debugMode
   toggleDebugMode: ["ctrl", "f1"]
   # cycle through the available upscaling methods
@@ -95,9 +103,6 @@ hotkeys:
   decreaseUpscalingSharpness: ["ctrl", "f6"]
   # toggle the application of MIP bias (see above)
   toggleUpscalingApplyMipBias: ["ctrl", "f7"]
-  # take a screen grab of the final (post-processed, upscaled) image.
-  # The screen grab is stored as a dds file next to the DLL.
-  captureOutput: ["ctrl", "f8"]
   # toggle fixed foveated rendering
   toggleFixedFoveated: ["alt", "f1"]
   # toggle if you want to prefer horizontal or vertical resolution

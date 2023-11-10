@@ -6,10 +6,10 @@
 namespace vrperfkit {
 	struct UpscaleConfig {
 		bool enabled = false;
-		UpscaleMethod method = UpscaleMethod::FSR;
-		float renderScale = 1.0f;
-		float sharpness = 0.7f;
-		float radius = 0.6f;
+		UpscaleMethod method = UpscaleMethod::NIS;
+		float renderScale = 0.866f;
+		float sharpness = 0.20f;
+		float radius = 1.00f;
 		bool applyMipBias = true;
 	};
 
@@ -25,9 +25,9 @@ namespace vrperfkit {
 	struct FixedFoveatedConfig {
 		bool enabled = false;
 		FixedFoveatedMethod method = FixedFoveatedMethod::VRS;
-		float innerRadius = 0.6f;
-		float midRadius = 0.8f;
-		float outerRadius = 1.0f;
+		float innerRadius = 0.70f;
+		float midRadius = 0.85f;
+		float outerRadius = 1.00f;
 		bool favorHorizontal = true;
 		std::string overrideSingleEyeOrder;
 	};
@@ -38,9 +38,6 @@ namespace vrperfkit {
 		FixedFoveatedConfig ffr;
 		bool debugMode = false;
 		std::string dllLoadPath = "";
-
-		// not a config option, but a signal to take a capture of the final rendering output
-		bool captureOutput = false;
 	};
 
 	extern Config g_config;

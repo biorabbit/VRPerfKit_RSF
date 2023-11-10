@@ -42,7 +42,7 @@ void Cas(int2 pos) {
 }
 
 void Bilinear(int2 pos) {
-	AF4 mul = AF4(1, 1, 1, 1) - debugMode * AF4(0, 0.3, 0.3, 0);
+	AF4 mul = AF4(1, 1, 1, 1);
 	float2 samplePos = ((float2(pos) + 0.5) * AF2_AU2(const0.xy) + float2(inputOffset)) / float2(inputTextureSize);
 	//float2 samplePos = (float2(pos + outputOffset) + 0.5) / outputTextureSize;
 	AF3 c = InputTexture.SampleLevel(samLinearClamp, samplePos, 0).rgb;
