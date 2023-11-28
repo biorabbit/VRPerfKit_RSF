@@ -59,4 +59,13 @@ namespace vrperfkit {
 	};
 	FixedFoveatedMethod FFRMethodFromString(std::string s);
 	std::string FFRMethodToString(FixedFoveatedMethod method);
+
+	enum class GameMode {
+		AUTO,
+		GENERIC_SINGLE,
+		LEFT_EYE_FIRST,
+		RIGHT_EYE_FIRST,
+	};
+	GameMode GameModeFromString(std::string s);
+	std::string GameModeToString(GameMode mode);
 }

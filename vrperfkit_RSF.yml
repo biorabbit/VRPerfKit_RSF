@@ -10,24 +10,25 @@
 # then upscale the image to the target resolution to regain some of the lost
 # visual fidelity.
 upscaling:
-  # enable (true) or disable (false) upscaling
+  # Enable (true) or disable (false) upscaling
   enabled: true
+
   # method to use for upscaling. Available options (all of them work on all GPUs):
   # - fsr (AMD FidelityFX Super Resolution)
   # - nis (NVIDIA Image Scaling)
   # - cas (AMD FidelityFX Contrast Adaptive Sharpening)
   method: nis
-  # control how much the render resolution is lowered. The renderScale factor is
-  # applied to both width and height. So if renderScale is set to 0.5 and you
-  # have a resolution of 2000x2000 configured in SteamVR, the resulting render
-  # resolution is 1000x1000.
-  # NOTE: this is different from how render scale works in SteamVR! A SteamVR
-  # render scale of 0.5 would be equivalent to renderScale 0.707 in this mod!
-  renderScale: 0.866
-  # configure how much the image is sharpened during upscaling.
+
+  # Control how much the render resolution is lowered. The renderScale is the percentage
+  # used to scale resolution used by the GPU to render. For example, a value of 50 (50%)
+  # means GPU will use half of pixels. This is same from how render scale works in SteamVR.
+  renderScale: 70
+
+  # Configure how much the image is sharpened during upscaling.
   # This parameter works differently for each of the upscaling methods, so you
   # will have to tweak it after you have chosen your preferred upscaling method.
-  sharpness: 0.20
+  sharpness: 0.30
+
   # Performance optimization: only apply the (more expensive) upscaling method
   # to an inner area of the rendered image and use cheaper bilinear sampling on
   # the rest of the image. The radius parameter determines how large the area
@@ -36,15 +37,16 @@ upscaling:
   # to visualize the size of the circle.
   # Note: to disable this optimization entirely, choose an arbitrary high value
   # (e.g. 100) for the radius.
-  radius: 1.00
-  # when enables, applies a MIP bias to texture sampling in the game. This will
+  radius: 0.95
+
+  # When enables, applies a MIP bias to texture sampling in the game. This will
   # make the game treat texture lookups as if it were rendering at the higher
   # target resolution, which can improve image quality a little bit. However,
   # it can also cause render artifacts in rare circumstances. So if you experience
   # issues, you may want to turn this off.
   applyMipBias: true
 
-# Fixed foveated rendering: continue rendering the center of the image at full
+# Fixed foveated rendering (FFR): continue rendering the center of the image at full
 # resolution, but drop the resolution when going to the edges of the image.
 # There are four rings whose radii you can configure below. The inner ring/circle
 # is the area that's rendered at full resolution and reaches from the center to innerRadius.
@@ -55,26 +57,98 @@ upscaling:
 # Fixed foveated rendering is achieved with Variable Rate Shading. This technique is only
 # available on NVIDIA RTX and GTX 16xx cards.
 fixedFoveated:
-  # enable (true) or disable (false) fixed foveated rendering
+  # Enable (true) or disable (false) fixed foveated rendering
   enabled: true
-  # configure the end of the inner circle, which is the area that will be rendered at full resolution
-  innerRadius: 0.70
-  # configure the end of the second ring, which will be rendered at half resolution
-  midRadius: 0.85
-  # configure the end of the third ring, which will be rendered at 1/4th resolution
-  outerRadius: 1.00
-  # the remainder of the image will be rendered at 1/16th resolution
 
-  # when reducing resolution, prefer to keep horizontal (true) or vertical (false) resolution?
+  # Dynamic: FFR is applied only when needed to try to maintain at least target FPS
+  dynamic: false
+  # Target FPS:
+  targetFPS: 60.0
+  # FPS to start recovering decrasing radius.
+  marginFPS: 65.0
+  # Change default dynamic behavior: FFR is always enabled but dynamic mode changes radius dinamically
+  dynamicChangeRadius: false
+  # Minimal radius: This is the minimal radius applied to innerRadius when dynamic is enabled
+  minRadius: 0.30
+  # Decreased radius amount applied for each frametime check when needed
+  decreaseRadiusStep: 0.01
+  # Increased radius amount applied for each frametime check when needed
+  increaseRadiusStep: 0.03
+
+  # Configure the end of the inner circle, which is the area that will be rendered at full resolution
+  innerRadius: 0.50
+  # Configure the end of the second ring, which will be rendered at half resolution
+  midRadius: 0.65
+  # Configure the end of the third ring, which will be rendered at 1/4th resolution
+  outerRadius: 0.80
+  # The remainder of the image will be rendered at 1/16th resolution
+
+  # Only applies FFR to target renders that matches equal resolution than final render.
+  # Some games requires to disable it.
+  preciseResolution: true
+
+  # FFR will not be applied to first specified target renders. Some games needs to skip
+  # some target renders to avoid crashes. This is different from HRM option.
+  ignoreFirstTargetRenders: 0
+
+  # When reducing resolution, prefer to keep horizontal (true) or vertical (false) resolution?
   favorHorizontal: true
 
-  # when applying fixed foveated rendering, vrperfkit will do its best to guess when the game
+  # When applying fixed foveated rendering, vrperfkit will do its best to guess when the game
   # is rendering which eye to apply a proper foveation mask.
   # However, for some games the default guess may be wrong. In such instances, you can uncomment
   # and use the following option to change the order of rendering.
   # Use letters L (left), R (right) or S (skip) to mark the order in which the game renders to the
   # left or right eye, or skip a render target entirely.
   #overrideSingleEyeOrder: LRLRLR
+
+  # Fast mode: When game renders each eye separatelly, enabling this will save a bit of performance,
+  # But overrideSingleEyeOrder will be ignored.
+  fastMode: false
+
+# Hidden radial mask (HRM) applies a render mask to avoid GPU rendering hidden pixel that are not visible
+# in the headset and gain some performance without any disvantage. Not all games are compatible.
+hiddenMask:
+  # Enable (true) or disable (false) hidden radial mask.
+  enabled: true
+
+  # Dynamic: HRM is applied only when needed to try to maintain at least target FPS
+  dynamic: false
+  # Target FPS:
+  targetFPS: 55.0
+  # FPS to start recovering decrasing radius.
+  marginFPS: 60.0
+  # Change default dynamic behavior: HRM is always enabled but dynamic mode changes radius dinamically
+  dynamicChangeRadius: false
+  # Minimal radius: This is the minimal radius applied when dynamic is enabled
+  minRadius: 0.85
+  # Decreased radius amount applied for each frametime check when needed
+  decreaseRadiusStep: 0.01
+  # Increased radius amount applied for each frametime check when needed
+  increaseRadiusStep: 0.03
+
+  # Radius
+  radius: 1.15
+
+  # Only applies HRM to target renders that matches equal resolution than final render.
+  # Some games requires to disable it.
+  preciseResolution: true
+
+  # HRM will not be applied to first specified target renders. Some games needs to skip
+  # some target renders to avoid crashes. This is different from FFR option.
+  ignoreFirstTargetRenders: 0
+
+# Game Mode
+# Some game need a special mode:
+# - auto (Default)
+# - single (A single rendered image contains both eyes)
+# - left (Each eye is rendered separatelly, and left eye is rendered first)
+# - right (Each eye is rendered separatelly, and right eye is rendered first)
+gameMode: auto
+
+# This controls how many frames must be generated to measure frametime when dynamic mode is used
+# with FFR and/or HRM. 
+dynamicFramesCheck: 3
 
 # Enabling debugMode will visualize the radius to which upscaling is applied (see above).
 # It will also output additional log messages and regularly report how much GPU frame time
@@ -86,24 +160,29 @@ debugMode: false
 # are not currently persisted in the config file and will reset to the values in the
 # config file when you next launch the game.
 hotkeys:
-  # enable or disable hotkeys; if they cause conflicts with ingame hotkeys, you can either
+  # Enable or disable hotkeys; if they cause conflicts with ingame hotkeys, you can either
   # configure them to different keys or just turn them off
   enabled: false
-  # toggles debugMode
+  
+  # Toggles debugMode
   toggleDebugMode: ["ctrl", "f1"]
-  # cycle through the available upscaling methods
+  # Cycle through the available upscaling methods
   cycleUpscalingMethod: ["ctrl", "f2"]
-  # increase the upscaling circle's radius (see above) by 0.05
+  # Increase the upscaling circle's radius (see above) by 0.05
   increaseUpscalingRadius: ["ctrl", "f3"]
-  # decrease the upscaling circle's radius (see above) by 0.05
+  # Decrease the upscaling circle's radius (see above) by 0.05
   decreaseUpscalingRadius: ["ctrl", "f4"]
-  # increase the upscaling sharpness (see above) by 0.05
+  # Increase the upscaling sharpness (see above) by 0.05
   increaseUpscalingSharpness: ["ctrl", "f5"]
-  # decrease the upscaling sharpness (see above) by 0.05
+  # Decrease the upscaling sharpness (see above) by 0.05
   decreaseUpscalingSharpness: ["ctrl", "f6"]
-  # toggle the application of MIP bias (see above)
+  # Toggle the application of MIP bias (see above)
   toggleUpscalingApplyMipBias: ["ctrl", "f7"]
-  # toggle fixed foveated rendering
+  # Increase the hidden radial mask circle's radius (see above) by 0.05
+  increaseHiddenMaskRadius: ["ctrl", "f8"]
+  # Decrease the hidden radial mask circle's radius (see above) by 0.05
+  decreaseHiddenMaskRadius: ["ctrl", "f9"]
+  # Toggle fixed foveated rendering
   toggleFixedFoveated: ["alt", "f1"]
-  # toggle if you want to prefer horizontal or vertical resolution
+  # Toggle if you want to prefer horizontal or vertical resolution
   toggleFFRFavorHorizontal: ["alt", "f2"]

@@ -1,6 +1,8 @@
 #include "d3d11_injector.h"
 #include "hooks.h"
 
+#include "config.h"
+
 namespace vrperfkit {
 	namespace {
 		bool alreadyInsideHook = false;
@@ -73,6 +75,21 @@ namespace vrperfkit {
 				injector->PostOMSetRenderTargets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
 			}
 		}
+
+		void D3D11ContextHook_ClearDepthStencilView(
+				ID3D11DeviceContext *self,
+				ID3D11DepthStencilView *pDepthStencilView,
+				UINT ClearFlags,
+				FLOAT Depth,
+				UINT8 Stencil) {
+			HookGuard hookGuard;
+
+			hooks::CallOriginal(D3D11ContextHook_ClearDepthStencilView)(self, pDepthStencilView, ClearFlags, Depth, Stencil);
+
+			if (D3D11Injector *injector = GetInjector(self)) {
+				injector->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
+			}
+		}
 	}
 
 	D3D11Injector::D3D11Injector(ComPtr<ID3D11Device> device) {
@@ -84,15 +101,31 @@ namespace vrperfkit {
 		device->SetPrivateData(__uuidof(D3D11Injector), size, &instance);
 		context->SetPrivateData(__uuidof(D3D11Injector), size, &instance);
 
-		hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::PSSetSamplers", context.Get(), 10, (void*)&D3D11ContextHook_PSSetSamplers);
-		hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::OMSetRenderTargets", context.Get(), 33, (void*)&D3D11ContextHook_OMSetRenderTargets);
-		hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews", context.Get(), 34, (void*)&D3D11ContextHook_OMSetRenderTargetsAndUnorderedAccessViews);
+		// Upscaling and FFR
+		if (g_config.upscaling.enabled || g_config.ffr.enabled) {
+			hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::PSSetSamplers", context.Get(), 10, (void*)&D3D11ContextHook_PSSetSamplers);
+			hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::OMSetRenderTargets", context.Get(), 33, (void*)&D3D11ContextHook_OMSetRenderTargets);
+			hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews", context.Get(), 34, (void*)&D3D11ContextHook_OMSetRenderTargetsAndUnorderedAccessViews);
+		}
+
+		// HRM
+		if (g_config.hiddenMask.enabled) {
+			hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::ClearDepthStencilView", context.Get(), 53, (void*)&D3D11ContextHook_ClearDepthStencilView);
+		}
 	}
 
 	D3D11Injector::~D3D11Injector() {
-		hooks::RemoveHook((void*)&D3D11ContextHook_PSSetSamplers);
-		hooks::RemoveHook((void*)&D3D11ContextHook_OMSetRenderTargets);
-		hooks::RemoveHook((void*)&D3D11ContextHook_OMSetRenderTargetsAndUnorderedAccessViews);
+		// Upscaling && FFR
+		if (g_config.upscaling.enabled || g_config.ffr.enabled) {
+			hooks::RemoveHook((void*)&D3D11ContextHook_PSSetSamplers);
+			hooks::RemoveHook((void*)&D3D11ContextHook_OMSetRenderTargets);
+			hooks::RemoveHook((void*)&D3D11ContextHook_OMSetRenderTargetsAndUnorderedAccessViews);
+		}
+		
+		// HRM
+		if (g_config.hiddenMask.enabled) {
+			hooks::RemoveHook((void*)&D3D11ContextHook_ClearDepthStencilView);
+		}
 
 		device->SetPrivateData(__uuidof(D3D11Injector), 0, nullptr);
 		context->SetPrivateData(__uuidof(D3D11Injector), 0, nullptr);
@@ -125,5 +158,15 @@ namespace vrperfkit {
 		for (D3D11Listener *listener : listeners) {
 			listener->PostOMSetRenderTargets(numViews, renderTargetViews, depthStencilView);
 		}
+	}
+
+	HRESULT D3D11Injector::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil) {
+		if (ClearFlags & D3D11_CLEAR_DEPTH) {
+			for (D3D11Listener * listener : listeners) {
+				listener->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
+			}
+		}
+
+		return 0;
 	}
 }

@@ -160,6 +160,9 @@ namespace vrperfkit {
 			projCenters.eyeCenter[eye].x = 0.5f * (1.f + (fov[eye].LeftTan - fov[eye].RightTan) / (fov[eye].RightTan + fov[eye].LeftTan));
 			projCenters.eyeCenter[eye].y = 0.5f * (1.f + (fov[eye].DownTan - fov[eye].UpTan) / (fov[eye].DownTan + fov[eye].UpTan));
 		}
+
+		d3d11Res->postProcessor.get()->SetProjCenters(projCenters.eyeCenter[0].x, projCenters.eyeCenter[0].y, projCenters.eyeCenter[1].x, projCenters.eyeCenter[1].y);
+		
 		return projCenters;
 	}
 

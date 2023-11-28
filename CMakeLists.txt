@@ -22,6 +22,20 @@ macro(set_compute_shader FILE OUT_FILE VAR_NAME)
 	set_property(SOURCE ${FILE} PROPERTY VS_SHADER_VARIABLE_NAME "${VAR_NAME}")
 endmacro()
 
+macro(set_pixel_shader FILE OUT_FILE VAR_NAME)
+	set_property(SOURCE ${FILE} PROPERTY VS_SHADER_TYPE "Pixel")
+	set_property(SOURCE ${FILE} PROPERTY VS_SHADER_MODEL "5.0")
+	set_property(SOURCE ${FILE} PROPERTY VS_SHADER_OUTPUT_HEADER_FILE "${OUT_FILE}")
+	set_property(SOURCE ${FILE} PROPERTY VS_SHADER_VARIABLE_NAME "${VAR_NAME}")
+endmacro()
+
+macro(set_vertex_shader FILE OUT_FILE VAR_NAME)
+	set_property(SOURCE ${FILE} PROPERTY VS_SHADER_TYPE "Vertex")
+	set_property(SOURCE ${FILE} PROPERTY VS_SHADER_MODEL "5.0")
+	set_property(SOURCE ${FILE} PROPERTY VS_SHADER_OUTPUT_HEADER_FILE "${OUT_FILE}")
+	set_property(SOURCE ${FILE} PROPERTY VS_SHADER_VARIABLE_NAME "${VAR_NAME}")
+endmacro()
+
 set(RESOURCE_FILES
 	resources/exports.def
 )
@@ -102,6 +116,14 @@ source_group("cas" FILES ${CAS_FILES})
 set_compute_shader(src/cas/cas.sharpen.hlsl "shader_cas_sharpen.h" "g_CASSharpenShader")
 set_compute_shader(src/cas/cas.upscale.hlsl "shader_cas_upscale.h" "g_CASUpscaleShader")
 
+set(HRM_FILES
+	src/hrm/hidden_radial_mask.hlsl
+	src/hrm/fullscreen_tri.vert.hlsl
+)
+source_group("hrm" FILES ${HRM_FILES})
+set_pixel_shader(src/hrm/hidden_radial_mask.hlsl "shader_hrm_mask.h" "g_HRM_MaskShader")
+set_vertex_shader(src/hrm/fullscreen_tri.vert.hlsl "shader_hrm_fullscreen_tri.h" "g_HRM_FullscreenTriShader")
+
 set(MAIN_FILES
 	src/config.h
 	src/config.cpp
@@ -127,6 +149,7 @@ set(PROJECT_FILES
 	${FSR_FILES}
 	${NIS_FILES}
 	${CAS_FILES}
+	${HRM_FILES}
 	${MAIN_FILES}
 )
 
@@ -159,3 +182,6 @@ endif()
 add_library(vrperfkit SHARED ${PROJECT_FILES})
 set_target_properties(vrperfkit PROPERTIES OUTPUT_NAME "dxgi")
 target_link_libraries(vrperfkit minhook yaml-cpp dxguid ${NVAPI_LIB})
+
+string(REPLACE "/Ob2" "/Ob3" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+message(CMAKE_CXX_FLAGS_RELEASE="${CMAKE_CXX_FLAGS_RELEASE}")

@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "openvr.h"
+
 namespace vrperfkit {
 	struct D3D11PostProcessInput {
 		ID3D11Texture2D *inputTexture;
@@ -29,9 +31,13 @@ namespace vrperfkit {
 	public:
 		D3D11PostProcessor(ComPtr<ID3D11Device> device);
 
+		HRESULT ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil);
+
 		bool Apply(const D3D11PostProcessInput &input, Viewport &outputViewport);
 
 		bool PrePSSetSamplers(UINT startSlot, UINT numSamplers, ID3D11SamplerState * const *ppSamplers) override;
+
+		void D3D11PostProcessor::SetProjCenters(float LX, float LY, float RX, float RY);
 
 	private:
 		ComPtr<ID3D11Device> device;
@@ -40,12 +46,61 @@ namespace vrperfkit {
 		UpscaleMethod upscaleMethod;
 
 		void PrepareUpscaler(ID3D11Texture2D *outputTexture);
-		void SaveTextureToFile(ID3D11Texture2D *texture);
 
 		std::unordered_set<ID3D11SamplerState*> passThroughSamplers;
 		std::unordered_map<ID3D11SamplerState*, ComPtr<ID3D11SamplerState>> mappedSamplers;
 		float mipLodBias = 0.0f;
 
+
+		struct DynamicProfileQuery {
+			ComPtr<ID3D11Query> queryDisjoint;
+			ComPtr<ID3D11Query> queryStart;
+			ComPtr<ID3D11Query> queryEnd;
+		};
+		static const int DYNAMIC_QUERY_COUNT = 1;
+		int DynamicSleepCount = 0;
+		DynamicProfileQuery dynamicProfileQueries[DYNAMIC_QUERY_COUNT];
+		int DynamicCurrentQuery = 0;
+		float DynamicSummedGpuTime = 0.0f;
+		int DynamicCountedQueries = 0;
+		bool is_DynamicProfiling = false;
+		bool enableDynamic = false;
+		bool hiddenMaskApply = false;
+
+		void CreateDynamicProfileQueries();
+		void StartDynamicProfiling();
+		void EndDynamicProfiling();
+
+		ComPtr<ID3D11Texture2D> copiedTexture;
+		ComPtr<ID3D11ShaderResourceView> copiedTextureView;
+		ComPtr<ID3D11SamplerState> sampler;
+		bool hrmInitialized = false;
+		uint32_t textureWidth = 0;
+		uint32_t textureHeight = 0;
+		bool requiresCopy = false;
+		bool inputIsSrgb = false;
+		ComPtr<ID3D11VertexShader> hrmFullTriVertexShader;
+		ComPtr<ID3D11PixelShader> hrmMaskingShader;
+		ComPtr<ID3D11Buffer> hrmMaskingConstantsBuffer[2];
+		ComPtr<ID3D11DepthStencilState> hrmDepthStencilState;
+		ComPtr<ID3D11RasterizerState> hrmRasterizerState;
+		float projX[2];
+		float projY[2];
+		int depthClearCount = 0;
+		
+		struct DepthStencilViews {
+			ComPtr<ID3D11DepthStencilView> view[2];
+		};
+		std::unordered_map<ID3D11Texture2D*, DepthStencilViews> depthStencilViews;
+
+		bool D3D11PostProcessor::HasBlacklistedTextureName(ID3D11Texture2D *tex);
+		ID3D11DepthStencilView * D3D11PostProcessor::GetDepthStencilView(ID3D11Texture2D *depthStencilTex, vr::EVREye eye);
+		void D3D11PostProcessor::PrepareResources(ID3D11Texture2D *inputTexture);
+		void D3D11PostProcessor::PrepareCopyResources(DXGI_FORMAT format);
+		void D3D11PostProcessor::PrepareRdmResources(DXGI_FORMAT format);
+		void ApplyHiddenRadialMask(ID3D11Texture2D *depthStencilTex, float depth, uint8_t stencil);
+
+/*
 		struct ProfileQuery {
 			ComPtr<ID3D11Query> queryDisjoint;
 			ComPtr<ID3D11Query> queryStart;
@@ -60,5 +115,6 @@ namespace vrperfkit {
 		void CreateProfileQueries();
 		void StartProfiling();
 		void EndProfiling();
+*/
 	};
 }

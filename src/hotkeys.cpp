@@ -27,12 +27,12 @@ namespace {
 
 	void IncreaseUpscalingRadius() {
 		g_config.upscaling.radius += 0.05f;
-		LOG_INFO << "New radius: " << g_config.upscaling.radius;
+		LOG_INFO << "New upscaling radius: " << g_config.upscaling.radius;
 	}
 
 	void DecreaseUpscalingRadius() {
 		g_config.upscaling.radius = std::max(0.f, g_config.upscaling.radius - 0.05f);
-		LOG_INFO << "New radius: " << g_config.upscaling.radius;
+		LOG_INFO << "New upscaling radius: " << g_config.upscaling.radius;
 	}
 
 	void IncreaseUpscalingSharpness() {
@@ -57,12 +57,23 @@ namespace {
 
 	void ToggleFixedFoveated() {
 		g_config.ffr.enabled = !g_config.ffr.enabled;
+		g_config.ffr.apply = g_config.ffr.enabled;
 		LOG_INFO << "Fixed foveated is now " << (g_config.ffr.enabled ? "enabled" : "disabled");
 	}
 
 	void ToggleFFRFavorHorizontal() {
 		g_config.ffr.favorHorizontal = !g_config.ffr.favorHorizontal;
 		LOG_INFO << "Fixed foveated now favors " << (g_config.ffr.favorHorizontal ? "horizontal" : "vertical") << " resolution";
+	}
+
+	void IncreaseHiddenMaskRadius() {
+		g_config.hiddenMask.radius += 0.05f;
+		LOG_INFO << "New hidden mask radius: " << g_config.hiddenMask.radius;
+	}
+
+	void DecreaseHiddenMaskRadius() {
+		g_config.hiddenMask.radius = std::max(0.f, g_config.hiddenMask.radius - 0.05f);
+		LOG_INFO << "New hidden mask radius: " << g_config.hiddenMask.radius;
 	}
 
 	struct HotkeyDefinition {
@@ -82,6 +93,8 @@ namespace {
 			{"toggleUpscalingApplyMipBias", ToggleUpscalingApplyMipBias},
 			{"toggleFixedFoveated", ToggleFixedFoveated},
 			{"toggleFFRFavorHorizontal", ToggleFFRFavorHorizontal},
+			{"increaseHiddenMaskRadius", IncreaseHiddenMaskRadius},
+			{"decreaseHiddenMaskRadius", DecreaseHiddenMaskRadius},
 		};
 	}
 

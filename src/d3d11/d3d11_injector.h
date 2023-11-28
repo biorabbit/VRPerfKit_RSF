@@ -8,6 +8,8 @@ namespace vrperfkit {
 	public:
 		virtual bool PrePSSetSamplers(UINT startSlot, UINT numSamplers, ID3D11SamplerState *const *ppSamplers) { return false; }
 		virtual void PostOMSetRenderTargets(UINT numViews, ID3D11RenderTargetView *const *renderTargetViews, ID3D11DepthStencilView *depthStencilView) {}
+		
+		virtual HRESULT ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil) { return 0; }
 
 	protected:
 		~D3D11Listener() = default;
@@ -23,6 +25,8 @@ namespace vrperfkit {
 
 		bool PrePSSetSamplers(UINT startSlot, UINT numSamplers, ID3D11SamplerState *const *ppSamplers);
 		void PostOMSetRenderTargets(UINT numViews, ID3D11RenderTargetView *const *renderTargetViews, ID3D11DepthStencilView *depthStencilView);
+
+		HRESULT ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil);
 
 	private:
 		ComPtr<ID3D11Device> device;

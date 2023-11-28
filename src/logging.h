@@ -39,6 +39,10 @@ namespace vrperfkit {
 			return *this << MethodToString(method);
 		}
 
+		LogMessage& operator<<(const GameMode &mode) {
+			return *this << GameModeToString(mode);
+		}
+
 	private:
 		bool flush;
 	};

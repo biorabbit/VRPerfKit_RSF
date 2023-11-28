@@ -72,6 +72,7 @@ namespace vrperfkit {
 			ID3D11ShaderResourceView *coeffViews[2] = {scalerCoeffView.Get(), usmCoeffView.Get()};
 			context->CSSetShaderResources(1, 2, coeffViews);
 			context->CSSetShader(upscaleShader.Get(), nullptr, 0);
+
 			context->Dispatch((UINT)std::ceil(outputViewport.width / 32.f), (UINT)std::ceil(outputViewport.height / 24.f), 1);
 		} else {
 			// just sharpening

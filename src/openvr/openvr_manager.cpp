@@ -302,6 +302,8 @@ namespace vrperfkit {
 		CalculateProjectionCenters();
 		CalculateEyeTextureAspectRatio();
 
+		d3d11Res->postProcessor.get()->SetProjCenters(projCenters.eyeCenter[0].x, projCenters.eyeCenter[0].y, projCenters.eyeCenter[1].x, projCenters.eyeCenter[1].y);
+
 		initialized = true;
 	}
 

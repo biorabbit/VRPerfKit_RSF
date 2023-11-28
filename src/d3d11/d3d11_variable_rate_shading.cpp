@@ -17,6 +17,9 @@ namespace vrperfkit {
 	}
 
 	bool ResolutionMatches(int actualSize, int targetSize) {
+		if (g_config.ffr.preciseResolution) {
+			return actualSize == targetSize;
+		}
 		return actualSize >= targetSize && actualSize <= targetSize + 2;
 	}
 
@@ -94,7 +97,7 @@ namespace vrperfkit {
 	}
 
 	void D3D11VariableRateShading::EndFrame() {
-		if (currentSingleEyeRT > 0) {
+		if (!g_config.ffr.fastMode && currentSingleEyeRT > 0) {
 			if (currentSingleEyeRT != singleEyeOrder.size()) {
 				LOG_DEBUG << "Found " << currentSingleEyeRT << " single eye render targets in current frame";
 				// guess left eye being rendered first, followed by right eye
@@ -119,13 +122,20 @@ namespace vrperfkit {
 					}
 				}
 			}
+			currentSingleEyeRT = 0;
 		}
-		currentSingleEyeRT = 0;
 	}
 
 	void D3D11VariableRateShading::PostOMSetRenderTargets(UINT numViews, ID3D11RenderTargetView * const *renderTargetViews,
 			ID3D11DepthStencilView *depthStencilView) {
-		if (!active || numViews == 0 || renderTargetViews == nullptr || renderTargetViews[0] == nullptr || !g_config.ffr.enabled) {
+		if (!active || numViews == 0 || renderTargetViews == nullptr || renderTargetViews[0] == nullptr || !g_config.ffr.apply) {
+			DisableVRS();
+			return;
+		}
+
+		++g_config.ffrDepthClearCount;
+
+		if (g_config.ffrDepthClearCount <= g_config.ffr.ignoreFirstTargetRenders) {
 			DisableVRS();
 			return;
 		}
@@ -149,16 +159,35 @@ namespace vrperfkit {
 			return;
 		}
 
-		if (targetMode == TextureMode::SINGLE && ResolutionMatches(td.Width, 2 * targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
+		if (g_config.ffr.fastMode) {
+			if (ResolutionMatches(td.Width, targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
+				if (g_config.gameMode == GameMode::RIGHT_EYE_FIRST) {
+					if (g_config.renderingSecondEye) {
+						ApplySingleEyeVRS(0, td.Width, td.Height);	// Left eye
+					} else {
+						ApplySingleEyeVRS(1, td.Width, td.Height);	// RIght eye
+					}
+				} else {
+					if (g_config.renderingSecondEye) {
+						ApplySingleEyeVRS(1, td.Width, td.Height);	// Right eye
+					} else {
+						ApplySingleEyeVRS(0, td.Width, td.Height);	// Left eye
+					}
+				}
+			} else {
+				DisableVRS();
+			}
+
+		} else if (targetMode == TextureMode::SINGLE && ResolutionMatches(td.Width, 2 * targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
 			ApplyCombinedVRS(td.Width, td.Height);
-		}
-		else if (targetMode == TextureMode::COMBINED && ResolutionMatches(td.Width, targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
+
+		} else if (targetMode == TextureMode::COMBINED && ResolutionMatches(td.Width, targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
 			ApplyCombinedVRS(td.Width, td.Height);
-		}
-		else if (targetMode != TextureMode::COMBINED && td.ArraySize == 2 && ResolutionMatches(td.Width, targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
+
+		} else if (targetMode != TextureMode::COMBINED && td.ArraySize == 2 && ResolutionMatches(td.Width, targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
 			ApplyArrayVRS(td.Width, td.Height);
-		}
-		else if (targetMode == TextureMode::SINGLE && td.ArraySize == 1 && ResolutionMatches(td.Width, targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
+
+		} else if (targetMode == TextureMode::SINGLE && td.ArraySize == 1 && ResolutionMatches(td.Width, targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
 			if (currentSingleEyeRT < singleEyeOrder.size()) {
 				char eye = singleEyeOrder[currentSingleEyeRT];
 				switch (eye) {
@@ -173,14 +202,13 @@ namespace vrperfkit {
 				default:
 					DisableVRS();
 				}
-			}
-			else {
+			} else {
 				LOG_DEBUG << "VRS: Single eye target, don't know which eye";
 				DisableVRS();
 			}
 			++currentSingleEyeRT;
-		}
-		else {
+
+		} else {
 			DisableVRS();
 		}
 	}
@@ -292,18 +320,26 @@ namespace vrperfkit {
 	}
 
 	void D3D11VariableRateShading::SetupSingleEyeVRS( int eye, int width, int height, float projX, float projY ) {
-		int vrsWidth = width / NV_VARIABLE_PIXEL_SHADING_TILE_WIDTH;
-		int vrsHeight = height / NV_VARIABLE_PIXEL_SHADING_TILE_HEIGHT;
-		if (!active || (singleEyeVRSTex[eye] && vrsWidth == singleWidth[eye] && vrsHeight == singleHeight[eye])) {
+		if (!active) {
 			return;
 		}
+
+		int vrsWidth = width / NV_VARIABLE_PIXEL_SHADING_TILE_WIDTH;
+		int vrsHeight = height / NV_VARIABLE_PIXEL_SHADING_TILE_HEIGHT;
+		
+		if (!g_config.ffr.radiusChanged[eye] && singleEyeVRSTex[eye] && vrsWidth == singleWidth[eye] && vrsHeight == singleHeight[eye]) {
+			return;
+		}
+
+		g_config.ffr.radiusChanged[eye] = false;
+
 		singleEyeVRSTex[eye].Reset();
 		singleEyeVRSView[eye].Reset();
 
 		singleWidth[eye] = vrsWidth;
 		singleHeight[eye] = vrsHeight;
 
-		LOG_INFO << "Creating VRS pattern texture for eye " << eye << " of size " << vrsWidth << "x" << vrsHeight;
+		//LOG_INFO << "Creating VRS pattern texture for eye " << eye << " of size " << vrsWidth << "x" << vrsHeight;
 
 		D3D11_TEXTURE2D_DESC td = {};
 		td.Width = vrsWidth;
@@ -329,7 +365,7 @@ namespace vrperfkit {
 			return;
 		}
 
-		LOG_INFO << "Creating shading rate resource view for eye " << eye;
+		//LOG_INFO << "Creating shading rate resource view for eye " << eye;
 		NV_D3D11_SHADING_RATE_RESOURCE_VIEW_DESC vd = {};
 		vd.version = NV_D3D11_SHADING_RATE_RESOURCE_VIEW_DESC_VER;
 		vd.Format = td.Format;
@@ -344,15 +380,21 @@ namespace vrperfkit {
 	}
 
 	void D3D11VariableRateShading::SetupCombinedVRS( int width, int height, float leftProjX, float leftProjY, float rightProjX, float rightProjY ) {
+		if (!active) {
+			return;
+		}
+		
 		int vrsWidth = width / NV_VARIABLE_PIXEL_SHADING_TILE_WIDTH;
 		if (vrsWidth & 1)
 			++vrsWidth;
 		int vrsHeight = height / NV_VARIABLE_PIXEL_SHADING_TILE_HEIGHT;
 		if (vrsHeight & 1)
 			++vrsHeight;
-		if (!active || (combinedVRSTex && vrsWidth == combinedWidth && vrsHeight == combinedHeight)) {
+		if (!g_config.ffr.radiusChanged[0] && combinedVRSTex && vrsWidth == combinedWidth && vrsHeight == combinedHeight) {
 			return;
 		}
+
+		g_config.ffr.radiusChanged[0] = false;
 
 		combinedVRSTex.Reset();
 		combinedVRSView.Reset();
@@ -360,7 +402,7 @@ namespace vrperfkit {
 		combinedWidth = vrsWidth;
 		combinedHeight = vrsHeight;
 
-		LOG_INFO << "Creating combined VRS pattern texture of size " << vrsWidth << "x" << vrsHeight << " for input texture size " << width << "x" << height;
+		//LOG_INFO << "Creating combined VRS pattern texture of size " << vrsWidth << "x" << vrsHeight << " for input texture size " << width << "x" << height;
 
 		D3D11_TEXTURE2D_DESC td = {};
 		td.Width = vrsWidth;
@@ -386,7 +428,7 @@ namespace vrperfkit {
 			return;
 		}
 
-		LOG_INFO << "Creating combined shading rate resource view";
+		//LOG_INFO << "Creating combined shading rate resource view";
 		NV_D3D11_SHADING_RATE_RESOURCE_VIEW_DESC vd = {};
 		vd.version = NV_D3D11_SHADING_RATE_RESOURCE_VIEW_DESC_VER;
 		vd.Format = td.Format;
@@ -401,18 +443,25 @@ namespace vrperfkit {
 	}
 
 	void D3D11VariableRateShading::SetupArrayVRS( int width, int height, float leftProjX, float leftProjY, float rightProjX, float rightProjY ) {
-		int vrsWidth = width / NV_VARIABLE_PIXEL_SHADING_TILE_WIDTH;
-		int vrsHeight = height / NV_VARIABLE_PIXEL_SHADING_TILE_HEIGHT;
-		if (!active || (arrayVRSTex && vrsWidth == arrayWidth && vrsHeight == arrayHeight)) {
+		if (!active) {
 			return;
 		}
+
+		int vrsWidth = width / NV_VARIABLE_PIXEL_SHADING_TILE_WIDTH;
+		int vrsHeight = height / NV_VARIABLE_PIXEL_SHADING_TILE_HEIGHT;
+		if (!g_config.ffr.radiusChanged[0] && arrayVRSTex && vrsWidth == arrayWidth && vrsHeight == arrayHeight) {
+			return;
+		}
+
+		g_config.ffr.radiusChanged[0] = false;
+
 		arrayVRSTex.Reset();
 		arrayVRSView.Reset();
 
 		arrayWidth = vrsWidth;
 		arrayHeight = vrsHeight;
 
-		LOG_INFO << "Creating array VRS pattern texture of size " << vrsWidth << "x" << vrsHeight;
+		//LOG_INFO << "Creating array VRS pattern texture of size " << vrsWidth << "x" << vrsHeight;
 
 		D3D11_TEXTURE2D_DESC td = {};
 		td.Width = vrsWidth;
@@ -440,7 +489,7 @@ namespace vrperfkit {
 		data = CreateSingleEyeFixedFoveatedVRSPattern( vrsWidth, vrsHeight, rightProjX, 1.f - rightProjY );
 		context->UpdateSubresource( arrayVRSTex.Get(), D3D11CalcSubresource( 0, 1, 1 ), nullptr, data.data(), vrsWidth, 0 );
 
-		LOG_INFO << "Creating array shading rate resource view";
+		//LOG_INFO << "Creating array shading rate resource view";
 		NV_D3D11_SHADING_RATE_RESOURCE_VIEW_DESC vd = {};
 		vd.version = NV_D3D11_SHADING_RATE_RESOURCE_VIEW_DESC_VER;
 		vd.Format = td.Format;
