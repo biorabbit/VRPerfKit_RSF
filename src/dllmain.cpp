@@ -88,7 +88,7 @@ namespace {
 
 		vrperfkit::OpenLogFile(vrperfkit::g_basePath / "vrperfkit_RSF.log");
 		LOG_INFO << "===============================";
-		LOG_INFO << "VR Performance Toolkit RSF v2.0";
+		LOG_INFO << "VR Performance Toolkit RSF v3.0";
 		LOG_INFO << "===============================\n";
 
 		vrperfkit::LoadConfig(vrperfkit::g_basePath / "vrperfkit_RSF.yml");

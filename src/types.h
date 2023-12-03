@@ -56,6 +56,7 @@ namespace vrperfkit {
 
 	enum class FixedFoveatedMethod {
 		VRS,
+		RDM,
 	};
 	FixedFoveatedMethod FFRMethodFromString(std::string s);
 	std::string FFRMethodToString(FixedFoveatedMethod method);

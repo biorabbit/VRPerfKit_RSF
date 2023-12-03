@@ -62,7 +62,12 @@ namespace vrperfkit {
 
 	D3D11VariableRateShading::D3D11VariableRateShading(ComPtr<ID3D11Device> device) {
 		active = false;
-		LOG_INFO << "Trying to load NVAPI...";
+
+		if (!g_config.ffr.enabled || g_config.ffr.method == FixedFoveatedMethod::RDM) {
+			return;
+		}
+
+		LOG_INFO << "Loading NVAPI for VRS...";
 
 		if (!nvapiLoaded) {
 			NvAPI_Status result = NvAPI_Initialize();
@@ -83,17 +88,21 @@ namespace vrperfkit {
 		this->device = device;
 		device->GetImmediateContext(context.GetAddressOf());
 		active = true;
+		ignoreFirstTargetRenders = g_config.ffr.ignoreFirstTargetRenders;
+		ignoreLastTargetRenders = g_config.ffr.ignoreLastTargetRenders;
 		LOG_INFO << "Successfully initialized NVAPI; Variable Rate Shading is available.";
 	}
 
 	void D3D11VariableRateShading::UpdateTargetInformation(int targetWidth, int targetHeight, TextureMode mode, float leftProjX, float leftProjY, float rightProjX, float rightProjY) {
-		this->targetWidth = targetWidth;
-		this->targetHeight = targetHeight;
-		this->targetMode = mode;
-		proj[0][0] = leftProjX;
-		proj[0][1] = leftProjY;
-		proj[1][0] = rightProjX;
-		proj[1][1] = rightProjY;
+		if (nvapiLoaded) {
+			this->targetWidth = targetWidth;
+			this->targetHeight = targetHeight;
+			this->targetMode = mode;
+			proj[0][0] = leftProjX;
+			proj[0][1] = leftProjY;
+			proj[1][0] = rightProjX;
+			proj[1][1] = rightProjY;
+		}
 	}
 
 	void D3D11VariableRateShading::EndFrame() {
@@ -128,14 +137,7 @@ namespace vrperfkit {
 
 	void D3D11VariableRateShading::PostOMSetRenderTargets(UINT numViews, ID3D11RenderTargetView * const *renderTargetViews,
 			ID3D11DepthStencilView *depthStencilView) {
-		if (!active || numViews == 0 || renderTargetViews == nullptr || renderTargetViews[0] == nullptr || !g_config.ffr.apply) {
-			DisableVRS();
-			return;
-		}
-
-		++g_config.ffrDepthClearCount;
-
-		if (g_config.ffrDepthClearCount <= g_config.ffr.ignoreFirstTargetRenders) {
+		if (!active || numViews == 0 || renderTargetViews == nullptr || renderTargetViews[0] == nullptr || !g_config.ffr.apply || !g_config.ffrApplyFastMode) {
 			DisableVRS();
 			return;
 		}
@@ -159,6 +161,15 @@ namespace vrperfkit {
 			return;
 		}
 
+		if (!g_config.ffrFastModeUsesHRMCount) {
+			++g_config.ffrRenderTargetCount;
+
+			if (g_config.ffrRenderTargetCount < ignoreFirstTargetRenders || (ignoreLastTargetRenders > 0 && g_config.ffrRenderTargetCount > g_config.ffrRenderTargetCountMax - ignoreLastTargetRenders)) {
+				DisableVRS();
+				return;
+			}
+		}
+
 		if (g_config.ffr.fastMode) {
 			if (ResolutionMatches(td.Width, targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
 				if (g_config.gameMode == GameMode::RIGHT_EYE_FIRST) {
@@ -176,6 +187,7 @@ namespace vrperfkit {
 				}
 			} else {
 				DisableVRS();
+				return;
 			}
 
 		} else if (targetMode == TextureMode::SINGLE && ResolutionMatches(td.Width, 2 * targetWidth) && ResolutionMatches(td.Height, targetHeight)) {
@@ -201,15 +213,18 @@ namespace vrperfkit {
 					break;
 				default:
 					DisableVRS();
+					return;
 				}
 			} else {
 				LOG_DEBUG << "VRS: Single eye target, don't know which eye";
 				DisableVRS();
+				return;
 			}
 			++currentSingleEyeRT;
 
 		} else {
 			DisableVRS();
+			return;
 		}
 	}
 

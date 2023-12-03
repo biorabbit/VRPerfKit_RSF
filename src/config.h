@@ -29,6 +29,7 @@ namespace vrperfkit {
 		float innerRadius = 0.50f;
 		float midRadius = 0.65f;
 		float outerRadius = 0.80f;
+		float edgeRadius = 1.15f;
 		bool favorHorizontal = true;
 		std::string overrideSingleEyeOrder;
 		bool fastMode = false;
@@ -42,12 +43,13 @@ namespace vrperfkit {
 		float increaseRadiusStep = 0.03f;
 		bool preciseResolution = true;
 		int ignoreFirstTargetRenders = 0;
+		int ignoreLastTargetRenders = 0;
 		bool radiusChanged[2] = { true, true };
 	};
 
 	struct HiddenRadialMask {
 		bool enabled = false;
-		float radius = 1.15f;
+		float edgeRadius = 1.15f;
 		bool dynamic = false;
 		bool dynamicChangeRadius = false;
 		float targetFrameTime = 0.0167f;
@@ -58,6 +60,7 @@ namespace vrperfkit {
 		float increaseRadiusStep = 0.03f;
 		bool preciseResolution = true;
 		int ignoreFirstTargetRenders = 0;
+		int ignoreLastTargetRenders = 0;
 	};
 
 	struct Config {
@@ -65,7 +68,10 @@ namespace vrperfkit {
 		DxvkConfig dxvk;
 		GameMode gameMode = GameMode::AUTO;
 		bool renderingSecondEye = false;
-		int ffrDepthClearCount = 0;
+		bool ffrFastModeUsesHRMCount = false;
+		bool ffrApplyFastMode = true;
+		int ffrRenderTargetCount = 0;
+		int ffrRenderTargetCountMax = 0;
 		FixedFoveatedConfig ffr;
 		HiddenRadialMask hiddenMask;
 		bool debugMode = false;

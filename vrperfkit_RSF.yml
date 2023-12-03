@@ -22,6 +22,9 @@ upscaling:
   # Control how much the render resolution is lowered. The renderScale is the percentage
   # used to scale resolution used by the GPU to render. For example, a value of 50 (50%)
   # means GPU will use half of pixels. This is same from how render scale works in SteamVR.
+  # If you set a value higher than 100 for renderScale, then the game will render at the native 
+  # resolution, i.e. the one configured in SteamVR. But FSR/NIS/CAS will then take this render and 
+  # upscale it to a resolution increased by the value of renderScale percentage.
   renderScale: 70
 
   # Configure how much the image is sharpened during upscaling.
@@ -54,11 +57,13 @@ upscaling:
 # The third ring reaches from midRadius to outerRadius and is rendered at 1/4th resolution.
 # The final fourth ring reaches from outerRadius to the edges of the image and is rendered
 # at 1/16th resolution.
-# Fixed foveated rendering is achieved with Variable Rate Shading. This technique is only
-# available on NVIDIA RTX and GTX 16xx cards.
 fixedFoveated:
   # Enable (true) or disable (false) fixed foveated rendering
-  enabled: true
+  enabled: false
+  # Method
+  # - vrs (Variable Rate Shading: This is only available on NVIDIA RTX and GTX 16xx cards)
+  # - rdm (Radial Density Mask: Compatible with any GPU. Hidden Mask will be disabled and Upscaling wil be enabled)
+  method: vrs
 
   # Dynamic: FFR is applied only when needed to try to maintain at least target FPS
   dynamic: false
@@ -73,7 +78,7 @@ fixedFoveated:
   # Decreased radius amount applied for each frametime check when needed
   decreaseRadiusStep: 0.01
   # Increased radius amount applied for each frametime check when needed
-  increaseRadiusStep: 0.03
+  increaseRadiusStep: 0.02
 
   # Configure the end of the inner circle, which is the area that will be rendered at full resolution
   innerRadius: 0.50
@@ -83,15 +88,21 @@ fixedFoveated:
   outerRadius: 0.80
   # The remainder of the image will be rendered at 1/16th resolution
 
-  # Only applies FFR to target renders that matches equal resolution than final render.
+  # Edge radius: Creates a Hidden Radial Mask. Available only in RDM mode
+  edgeRadius: 1.15
+
+  # Only applies FFR to target renders that matches equal resolution to final render.
   # Some games requires to disable it.
   preciseResolution: true
 
-  # FFR will not be applied to first specified target renders. Some games needs to skip
-  # some target renders to avoid crashes. This is different from HRM option.
+  # FFR will not be applied to first and last specified target renders. Some games needs to skip
+  # some target renders to avoid crashes. This is different from HRM option. Target renders from VSR mode
+  # are different to RDM mode target renders.
   ignoreFirstTargetRenders: 0
+  ignoreLastTargetRenders: 0
 
-  # When reducing resolution, prefer to keep horizontal (true) or vertical (false) resolution?
+  # When reducing resolution, prefer to keep horizontal (true) or vertical (false) resolution? Available
+  # only in VRS mode.
   favorHorizontal: true
 
   # When applying fixed foveated rendering, vrperfkit will do its best to guess when the game
@@ -103,8 +114,11 @@ fixedFoveated:
   #overrideSingleEyeOrder: LRLRLR
 
   # Fast mode: When game renders each eye separatelly, enabling this will save a bit of performance,
-  # But overrideSingleEyeOrder will be ignored.
+  # But overrideSingleEyeOrder will be ignored. Available only in VRS mode.
   fastMode: false
+  # When fastMode is used, you can use HRM render targets counter instead default VRS counter. This will
+  # force to enable HRM. Ignored target renders configuration will be used from hiddenMask section instead.
+  fastModeUsesHRMCount: false
 
 # Hidden radial mask (HRM) applies a render mask to avoid GPU rendering hidden pixel that are not visible
 # in the headset and gain some performance without any disvantage. Not all games are compatible.
@@ -125,10 +139,10 @@ hiddenMask:
   # Decreased radius amount applied for each frametime check when needed
   decreaseRadiusStep: 0.01
   # Increased radius amount applied for each frametime check when needed
-  increaseRadiusStep: 0.03
+  increaseRadiusStep: 0.02
 
-  # Radius
-  radius: 1.15
+  # Edge radius
+  edgeRadius: 1.15
 
   # Only applies HRM to target renders that matches equal resolution than final render.
   # Some games requires to disable it.
@@ -137,6 +151,7 @@ hiddenMask:
   # HRM will not be applied to first specified target renders. Some games needs to skip
   # some target renders to avoid crashes. This is different from FFR option.
   ignoreFirstTargetRenders: 0
+  ignoreLastTargetRenders: 0
 
 # Game Mode
 # Some game need a special mode:
@@ -148,7 +163,7 @@ gameMode: auto
 
 # This controls how many frames must be generated to measure frametime when dynamic mode is used
 # with FFR and/or HRM. 
-dynamicFramesCheck: 3
+dynamicFramesCheck: 1
 
 # Enabling debugMode will visualize the radius to which upscaling is applied (see above).
 # It will also output additional log messages and regularly report how much GPU frame time
@@ -178,11 +193,7 @@ hotkeys:
   decreaseUpscalingSharpness: ["ctrl", "f6"]
   # Toggle the application of MIP bias (see above)
   toggleUpscalingApplyMipBias: ["ctrl", "f7"]
-  # Increase the hidden radial mask circle's radius (see above) by 0.05
-  increaseHiddenMaskRadius: ["ctrl", "f8"]
-  # Decrease the hidden radial mask circle's radius (see above) by 0.05
-  decreaseHiddenMaskRadius: ["ctrl", "f9"]
   # Toggle fixed foveated rendering
-  toggleFixedFoveated: ["alt", "f1"]
+  toggleFixedFoveated: ["ctrl", "f8"]
   # Toggle if you want to prefer horizontal or vertical resolution
-  toggleFFRFavorHorizontal: ["alt", "f2"]
+  toggleFFRFavorHorizontal: ["ctrl", "f9"]

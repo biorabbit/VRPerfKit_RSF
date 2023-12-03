@@ -102,28 +102,28 @@ namespace vrperfkit {
 		context->SetPrivateData(__uuidof(D3D11Injector), size, &instance);
 
 		// Upscaling and FFR
-		if (g_config.upscaling.enabled || g_config.ffr.enabled) {
+		if (g_config.upscaling.enabled || (g_config.ffr.enabled && g_config.ffr.method == FixedFoveatedMethod::VRS)) {
 			hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::PSSetSamplers", context.Get(), 10, (void*)&D3D11ContextHook_PSSetSamplers);
 			hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::OMSetRenderTargets", context.Get(), 33, (void*)&D3D11ContextHook_OMSetRenderTargets);
 			hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews", context.Get(), 34, (void*)&D3D11ContextHook_OMSetRenderTargetsAndUnorderedAccessViews);
 		}
 
 		// HRM
-		if (g_config.hiddenMask.enabled) {
+		if (g_config.hiddenMask.enabled || (g_config.ffr.enabled && g_config.ffr.method == FixedFoveatedMethod::RDM)) {
 			hooks::InstallVirtualFunctionHook("ID3D11DeviceContext::ClearDepthStencilView", context.Get(), 53, (void*)&D3D11ContextHook_ClearDepthStencilView);
 		}
 	}
 
 	D3D11Injector::~D3D11Injector() {
 		// Upscaling && FFR
-		if (g_config.upscaling.enabled || g_config.ffr.enabled) {
+		if (g_config.upscaling.enabled || (g_config.ffr.enabled && g_config.ffr.method == FixedFoveatedMethod::VRS)) {
 			hooks::RemoveHook((void*)&D3D11ContextHook_PSSetSamplers);
 			hooks::RemoveHook((void*)&D3D11ContextHook_OMSetRenderTargets);
 			hooks::RemoveHook((void*)&D3D11ContextHook_OMSetRenderTargetsAndUnorderedAccessViews);
 		}
 		
 		// HRM
-		if (g_config.hiddenMask.enabled) {
+		if (g_config.hiddenMask.enabled || (g_config.ffr.enabled && g_config.ffr.method == FixedFoveatedMethod::RDM)) {
 			hooks::RemoveHook((void*)&D3D11ContextHook_ClearDepthStencilView);
 		}
 

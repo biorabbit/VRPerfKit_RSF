@@ -66,6 +66,10 @@ namespace vrperfkit {
 		bool is_DynamicProfiling = false;
 		bool enableDynamic = false;
 		bool hiddenMaskApply = false;
+		bool is_rdm = false;
+		bool preciseResolution = false;
+		int ignoreFirstTargetRenders = 0;
+		int ignoreLastTargetRenders = 0;
 
 		void CreateDynamicProfileQueries();
 		void StartDynamicProfiling();
@@ -81,12 +85,20 @@ namespace vrperfkit {
 		bool inputIsSrgb = false;
 		ComPtr<ID3D11VertexShader> hrmFullTriVertexShader;
 		ComPtr<ID3D11PixelShader> hrmMaskingShader;
+		ComPtr<ID3D11PixelShader> rdmMaskingShader;
+		ComPtr<ID3D11ComputeShader> rdmReconstructShader;
 		ComPtr<ID3D11Buffer> hrmMaskingConstantsBuffer[2];
+		ComPtr<ID3D11Buffer> rdmReconstructConstantsBuffer[2];
+		ComPtr<ID3D11Texture2D> rdmReconstructedTexture;
+		ComPtr<ID3D11UnorderedAccessView> rdmReconstructedUav;
+		ComPtr<ID3D11ShaderResourceView> rdmReconstructedView;
 		ComPtr<ID3D11DepthStencilState> hrmDepthStencilState;
 		ComPtr<ID3D11RasterizerState> hrmRasterizerState;
 		float projX[2];
 		float projY[2];
 		int depthClearCount = 0;
+		int depthClearCountMax = 0;
+		float edgeRadius = 1.15f;
 		
 		struct DepthStencilViews {
 			ComPtr<ID3D11DepthStencilView> view[2];
@@ -98,7 +110,8 @@ namespace vrperfkit {
 		void D3D11PostProcessor::PrepareResources(ID3D11Texture2D *inputTexture);
 		void D3D11PostProcessor::PrepareCopyResources(DXGI_FORMAT format);
 		void D3D11PostProcessor::PrepareRdmResources(DXGI_FORMAT format);
-		void ApplyHiddenRadialMask(ID3D11Texture2D *depthStencilTex, float depth, uint8_t stencil);
+		void D3D11PostProcessor::ApplyRadialDensityMask(ID3D11Texture2D *depthStencilTex, float depth, uint8_t stencil);
+		void D3D11PostProcessor::ReconstructRdmRender(const D3D11PostProcessInput &input);
 
 /*
 		struct ProfileQuery {

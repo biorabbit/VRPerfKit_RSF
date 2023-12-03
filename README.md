@@ -1,6 +1,8 @@
 VR Performance Toolkit RavenSystem's Fork
 =========================================
 
+[![Donate](https://img.shields.io/badge/donate-PayPal-blue.svg)](https://paypal.me/ravensystem)
+
 In an effort to continue this project, I have created this fork with updated components and SDKs. I added too some
 improvements, like HRM and dynamic modes, and other compatibility options.
 
@@ -12,11 +14,15 @@ Included mods:
   * AMD FidelityFX Super Resolution
   * NVIDIA Image Scaling
   * AMD Contrast Adaptive Sharpening
-* FFR: Fixed foveated rendering (render center of image at full resolution, but drop resolution towards edges)
-  * Variable Rate Shading (only for NVIDIA RTX / GTX 16xx cards)
+* FFR: Fixed foveated rendering: render center of image at full resolution, but drop resolution towards edges
+  * VRS: Variable Rate Shading (only for NVIDIA RTX / GTX 16xx cards)
+  * RDM: Radial Density Mask (all GPUs)
 * HRM: Hidden radial mask: don't render pixels at the edges that are not visible in the headset.
   Many games already use this mask, but not all. This mod will allow you to force its usage.
-* Dynamic modes for FFR and HRM to apply only to keep target FPS.
+* Dynamic modes for FFR and HRM based on FPS:
+  * Apply only when needed.
+  * Change the radius dinamically.
+* Several extra compatibility options to work with more games.
 
 Supported VR runtimes:
 

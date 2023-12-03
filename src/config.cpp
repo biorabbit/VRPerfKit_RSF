@@ -32,12 +32,17 @@ namespace vrperfkit {
 		case UpscaleMethod::CAS:
 			return "CAS";
 		}
+
+		return "Unknown";
 	}
 
 	FixedFoveatedMethod FFRMethodFromString(std::string s) {
 		std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
 		if (s == "vrs") {
 			return FixedFoveatedMethod::VRS;
+		}
+		if (s == "rdm") {
+			return FixedFoveatedMethod::RDM;
 		}
 		LOG_INFO << "Unknown fixed foveated method " << s << ", defaulting to VRS";
 		return FixedFoveatedMethod::VRS;
@@ -47,7 +52,11 @@ namespace vrperfkit {
 		switch (method) {
 		case FixedFoveatedMethod::VRS:
 			return "VRS";
+		case FixedFoveatedMethod::RDM:
+			return "RDM";
 		}
+
+		return "Unknown";
 	}
 
 	GameMode GameModeFromString(std::string s) {
@@ -79,6 +88,8 @@ namespace vrperfkit {
 		case GameMode::RIGHT_EYE_FIRST:
 			return "right";
 		}
+
+		return "Unknown";
 	}
 
 	std::string PrintToggle(bool toggle) {
@@ -122,15 +133,22 @@ namespace vrperfkit {
 			FixedFoveatedConfig &ffr = g_config.ffr;
 			ffr.enabled = ffrCfg["enabled"].as<bool>(ffr.enabled);
 			ffr.apply = ffr.enabled;
+			ffr.method = FFRMethodFromString(ffrCfg["method"].as<std::string>(FFRMethodToString(ffr.method)));
 			ffr.favorHorizontal = ffrCfg["favorHorizontal"].as<bool>(ffr.favorHorizontal);
 			ffr.innerRadius = ffrCfg["innerRadius"].as<float>(ffr.innerRadius);
 			ffr.midRadius = ffrCfg["midRadius"].as<float>(ffr.midRadius);
 			ffr.outerRadius = ffrCfg["outerRadius"].as<float>(ffr.outerRadius);
+			ffr.edgeRadius = ffrCfg["edgeRadius"].as<float>(ffr.edgeRadius);
 			ffr.preciseResolution = ffrCfg["preciseResolution"].as<bool>(ffr.preciseResolution);
 			ffr.ignoreFirstTargetRenders = ffrCfg["ignoreFirstTargetRenders"].as<int>(ffr.ignoreFirstTargetRenders);
+			ffr.ignoreLastTargetRenders = ffrCfg["ignoreLastTargetRenders"].as<int>(ffr.ignoreLastTargetRenders);
 			ffr.maxRadius = ffr.innerRadius;
 			ffr.overrideSingleEyeOrder = ffrCfg["overrideSingleEyeOrder"].as<std::string>(ffr.overrideSingleEyeOrder);
 			ffr.fastMode = ffrCfg["fastMode"].as<bool>(ffr.fastMode);
+			g_config.ffrFastModeUsesHRMCount = ffrCfg["fastModeUsesHRMCount"].as<bool>(g_config.ffrFastModeUsesHRMCount);
+			if (!ffr.fastMode) {
+				g_config.ffrFastModeUsesHRMCount = false;
+			}
 			ffr.dynamic = ffrCfg["dynamic"].as<bool>(ffr.dynamic);
 			ffr.targetFrameTime = 1.f / ffrCfg["targetFPS"].as<float>(ffr.targetFrameTime);
 			ffr.marginFrameTime = 1.f / ffrCfg["marginFPS"].as<float>(ffr.marginFrameTime);
@@ -142,10 +160,11 @@ namespace vrperfkit {
 			YAML::Node hiddenMaskCfg = cfg["hiddenMask"];
 			HiddenRadialMask &hiddenMask= g_config.hiddenMask;
 			hiddenMask.enabled = hiddenMaskCfg["enabled"].as<bool>(hiddenMask.enabled);
-			hiddenMask.radius = std::max(0.f, hiddenMaskCfg["radius"].as<float>(hiddenMask.radius));
-			hiddenMask.maxRadius = hiddenMask.radius;
+			hiddenMask.edgeRadius = std::max(0.f, hiddenMaskCfg["edgeRadius"].as<float>(hiddenMask.edgeRadius));
+			hiddenMask.maxRadius = hiddenMask.edgeRadius;
 			hiddenMask.preciseResolution = hiddenMaskCfg["preciseResolution"].as<bool>(hiddenMask.preciseResolution);
 			hiddenMask.ignoreFirstTargetRenders = hiddenMaskCfg["ignoreFirstTargetRenders"].as<int>(hiddenMask.ignoreFirstTargetRenders);
+			hiddenMask.ignoreLastTargetRenders = hiddenMaskCfg["ignoreLastTargetRenders"].as<int>(hiddenMask.ignoreLastTargetRenders);
 			hiddenMask.dynamic = hiddenMaskCfg["dynamic"].as<bool>(hiddenMask.dynamic);
 			hiddenMask.targetFrameTime = 1.f / hiddenMaskCfg["targetFPS"].as<float>(hiddenMask.targetFrameTime);
 			hiddenMask.marginFrameTime = 1.f / hiddenMaskCfg["marginFPS"].as<float>(hiddenMask.marginFrameTime);
@@ -162,6 +181,31 @@ namespace vrperfkit {
 			g_config.dynamicFramesCheck = cfg["dynamicFramesCheck"].as<int>(g_config.dynamicFramesCheck);
 			if (g_config.dynamicFramesCheck < 1) {
 				g_config.dynamicFramesCheck = 1;
+			}
+
+			if (g_config.ffr.enabled) {
+				if (g_config.ffr.method == FixedFoveatedMethod::RDM) {
+					g_config.ffr.fastMode = false;
+					g_config.ffrFastModeUsesHRMCount = false;
+					g_config.hiddenMask.enabled = false;
+					
+					if (!g_config.upscaling.enabled) {
+						g_config.upscaling.enabled = true;
+						g_config.upscaling.radius = g_config.ffr.edgeRadius;
+						g_config.upscaling.method = UpscaleMethod::CAS;
+						g_config.upscaling.renderScale = 1.0f;
+						g_config.upscaling.sharpness = 0.7f;
+						g_config.upscaling.applyMipBias = false;
+					}
+
+				} else if (g_config.ffr.method == FixedFoveatedMethod::VRS && !g_config.hiddenMask.enabled && g_config.ffrFastModeUsesHRMCount) {
+					g_config.hiddenMask.enabled = true;
+					g_config.hiddenMask.dynamic = false;
+					g_config.hiddenMask.edgeRadius = 1.15f;
+					g_config.hiddenMask.ignoreFirstTargetRenders = 0;
+					g_config.hiddenMask.ignoreLastTargetRenders = 0;
+					g_config.hiddenMask.preciseResolution = true;
+				}
 			}
 		}
 		catch (const YAML::Exception &e) {
@@ -190,12 +234,18 @@ namespace vrperfkit {
 			LOG_INFO << "    * Inner radius:  " << std::setprecision(6) << g_config.ffr.innerRadius;
 			LOG_INFO << "    * Mid radius:    " << std::setprecision(6) << g_config.ffr.midRadius;
 			LOG_INFO << "    * Outer radius:  " << std::setprecision(6) << g_config.ffr.outerRadius;
+			if (g_config.ffr.method == FixedFoveatedMethod::RDM) {
+				LOG_INFO << "    * Edge radius:   " << std::setprecision(6) << g_config.ffr.edgeRadius;
+			}
 			LOG_INFO << "    * Precise res:   " << PrintToggle(g_config.ffr.preciseResolution);
-			LOG_INFO << "    * No renders:    " << std::setprecision(6) << g_config.ffr.ignoreFirstTargetRenders;
-			if (!g_config.ffr.overrideSingleEyeOrder.empty()) {
+			LOG_INFO << "    * No first rend: " << std::setprecision(6) << g_config.ffr.ignoreFirstTargetRenders;
+			LOG_INFO << "    * No last rend:  " << std::setprecision(6) << g_config.ffr.ignoreLastTargetRenders;
+			LOG_INFO << "    * Fast mode:     " << PrintToggle(g_config.ffr.fastMode);
+			if (g_config.ffr.fastMode) {
+				LOG_INFO << "      * HRM counter: " << PrintToggle(g_config.ffrFastModeUsesHRMCount);
+			} else if (!g_config.ffr.overrideSingleEyeOrder.empty()) {
 				LOG_INFO << "    * Eye order:     " << g_config.ffr.overrideSingleEyeOrder;
 			}
-			LOG_INFO << "    * Fast mode:     " << PrintToggle(g_config.ffr.fastMode);
 			LOG_INFO << "    * Dynamic:       " << PrintToggle(g_config.ffr.dynamic);
 			if (g_config.ffr.dynamic) {
 				LOG_INFO << "      * Target FPS:  " << std::setprecision(6) << (1.f / g_config.ffr.targetFrameTime);
@@ -211,12 +261,15 @@ namespace vrperfkit {
 			}
 		} else {
 			g_config.ffr.dynamic = false;
+			g_config.ffr.fastMode = false;
 		}
+
 		LOG_INFO << "  Hidden radial mask is " << PrintToggle(g_config.hiddenMask.enabled);
 		if (g_config.hiddenMask.enabled) {
-			LOG_INFO << "    * Radius:        " << std::setprecision(6) << g_config.hiddenMask.radius;
+			LOG_INFO << "    * Edge radius:   " << std::setprecision(6) << g_config.hiddenMask.edgeRadius;
 			LOG_INFO << "    * Precise res:   " << PrintToggle(g_config.hiddenMask.preciseResolution);
-			LOG_INFO << "    * No renders:    " << std::setprecision(6) << g_config.hiddenMask.ignoreFirstTargetRenders;
+			LOG_INFO << "    * No first rend: " << std::setprecision(6) << g_config.hiddenMask.ignoreFirstTargetRenders;
+			LOG_INFO << "    * No last rend:  " << std::setprecision(6) << g_config.hiddenMask.ignoreLastTargetRenders;
 			LOG_INFO << "    * Dynamic:       " << PrintToggle(g_config.hiddenMask.dynamic);
 			if (g_config.hiddenMask.dynamic) {
 				LOG_INFO << "      * Target FPS:  " << std::setprecision(6) << (1.f / g_config.hiddenMask.targetFrameTime);

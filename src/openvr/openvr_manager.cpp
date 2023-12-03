@@ -424,6 +424,7 @@ namespace vrperfkit {
 			info.bounds = &outputBounds;
 
 			PrepareOutputTexInfo(info.texture, info.submitFlags);
+			
 			outputTexInfo->handle = d3d11Res->outputTexture.Get();
 			outputTexInfo->eColorSpace = inputIsSrgb ? ColorSpace_Gamma : ColorSpace_Auto;
 			info.texture = outputTexInfo.get();

@@ -66,16 +66,6 @@ namespace {
 		LOG_INFO << "Fixed foveated now favors " << (g_config.ffr.favorHorizontal ? "horizontal" : "vertical") << " resolution";
 	}
 
-	void IncreaseHiddenMaskRadius() {
-		g_config.hiddenMask.radius += 0.05f;
-		LOG_INFO << "New hidden mask radius: " << g_config.hiddenMask.radius;
-	}
-
-	void DecreaseHiddenMaskRadius() {
-		g_config.hiddenMask.radius = std::max(0.f, g_config.hiddenMask.radius - 0.05f);
-		LOG_INFO << "New hidden mask radius: " << g_config.hiddenMask.radius;
-	}
-
 	struct HotkeyDefinition {
 		std::string name;
 		std::function<void()> action;
@@ -93,8 +83,6 @@ namespace {
 			{"toggleUpscalingApplyMipBias", ToggleUpscalingApplyMipBias},
 			{"toggleFixedFoveated", ToggleFixedFoveated},
 			{"toggleFFRFavorHorizontal", ToggleFFRFavorHorizontal},
-			{"increaseHiddenMaskRadius", IncreaseHiddenMaskRadius},
-			{"decreaseHiddenMaskRadius", DecreaseHiddenMaskRadius},
 		};
 	}
 

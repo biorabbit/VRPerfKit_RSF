@@ -9,14 +9,32 @@
 
 #include "shader_hrm_fullscreen_tri.h"
 #include "shader_hrm_mask.h"
+#include "shader_rdm_mask.h"
+#include "shader_rdm_reconstruction.h"
 
 #include <sstream>
 
 namespace vrperfkit {
 	D3D11PostProcessor::D3D11PostProcessor(ComPtr<ID3D11Device> device) : device(device) {
 		enableDynamic = g_config.hiddenMask.dynamic || g_config.ffr.dynamic;
-		hiddenMaskApply = g_config.hiddenMask.enabled;
+
+		is_rdm = (g_config.ffr.enabled && g_config.ffr.method == FixedFoveatedMethod::RDM);
+		if (is_rdm) {
+			hiddenMaskApply = g_config.ffr.enabled;
+			preciseResolution = g_config.ffr.preciseResolution;
+			ignoreFirstTargetRenders = g_config.ffr.ignoreFirstTargetRenders;
+			ignoreLastTargetRenders = g_config.ffr.ignoreLastTargetRenders;
+			edgeRadius = g_config.ffr.edgeRadius;
+		} else {
+			hiddenMaskApply = g_config.hiddenMask.enabled;
+			preciseResolution = g_config.hiddenMask.preciseResolution;
+			ignoreFirstTargetRenders = g_config.hiddenMask.ignoreFirstTargetRenders;
+			ignoreLastTargetRenders = g_config.hiddenMask.ignoreLastTargetRenders;
+			edgeRadius = g_config.hiddenMask.edgeRadius;
+		}
+
 		device->GetImmediateContext(context.GetAddressOf());
+		LOG_INFO << "Init PostProcessor";
 	}
 
 	HRESULT D3D11PostProcessor::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil) {
@@ -33,7 +51,7 @@ namespace vrperfkit {
 		D3D11_TEXTURE2D_DESC texDesc;
 		((ID3D11Texture2D*)resource.Get())->GetDesc(&texDesc);
 		
-		if (g_config.hiddenMask.preciseResolution) {
+		if (preciseResolution) {
 			if (texDesc.Width != textureWidth || texDesc.Height != textureHeight) {
 				return 0;
 			}
@@ -43,8 +61,8 @@ namespace vrperfkit {
 			return 0;
 		}
 		
-		ApplyHiddenRadialMask((ID3D11Texture2D*)resource.Get(), Depth, Stencil);
-		
+		ApplyRadialDensityMask((ID3D11Texture2D*)resource.Get(), Depth, Stencil);
+
 		return 0;
 	}
 
@@ -56,6 +74,15 @@ namespace vrperfkit {
 		float yFix[2];
 		float edgeRadius;
 		float _padding;
+	};
+
+	struct RdmReconstructConstants {
+		int offset[2];
+		float projectionCenter[2];
+		float invClusterResolution[2];
+		float invResolution[2];
+		float radius[3];
+		float edgeRadius;
 	};
 
 	DXGI_FORMAT TranslateTypelessDepthFormats(DXGI_FORMAT format) {
@@ -177,8 +204,39 @@ namespace vrperfkit {
 	}
 
 	void D3D11PostProcessor::PrepareRdmResources(DXGI_FORMAT format) {
-		CheckResult("Creating HRM fullscreen tri vertex shader", device->CreateVertexShader( g_HRM_FullscreenTriShader, sizeof( g_HRM_FullscreenTriShader ), nullptr, hrmFullTriVertexShader.GetAddressOf() ));
-		CheckResult("Creating HRM masking shader", device->CreatePixelShader( g_HRM_MaskShader, sizeof( g_HRM_MaskShader ), nullptr, hrmMaskingShader.GetAddressOf() ));
+		CheckResult("Creating HRM/RDM fullscreen tri vertex shader", device->CreateVertexShader( g_HRM_FullscreenTriShader, sizeof( g_HRM_FullscreenTriShader ), nullptr, hrmFullTriVertexShader.GetAddressOf() ));
+		if (is_rdm) {
+			CheckResult("Creating RDM masking shader", device->CreatePixelShader( g_RDM_MaskShader, sizeof( g_RDM_MaskShader ), nullptr, rdmMaskingShader.GetAddressOf() ));
+			CheckResult("Creating RDM reconstruction shader", device->CreateComputeShader( g_RDM_ReconstructionShader, sizeof( g_RDM_ReconstructionShader ), nullptr, rdmReconstructShader.GetAddressOf() ));
+
+			D3D11_TEXTURE2D_DESC td;
+			td.Width = textureWidth;
+			td.Height = textureHeight;
+			td.MipLevels = 1;
+			td.CPUAccessFlags = 0;
+			td.Usage = D3D11_USAGE_DEFAULT;
+			td.BindFlags = D3D11_BIND_UNORDERED_ACCESS|D3D11_BIND_SHADER_RESOURCE;
+			td.Format = format;
+			td.MiscFlags = 0;
+			td.SampleDesc.Count = 1;
+			td.SampleDesc.Quality = 0;
+			td.ArraySize = 1;
+			CheckResult("Creating RDM reconstructed texture", device->CreateTexture2D( &td, nullptr, rdmReconstructedTexture.GetAddressOf() ));
+			D3D11_UNORDERED_ACCESS_VIEW_DESC uav;
+			uav.Format = td.Format;
+			uav.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+			uav.Texture2D.MipSlice = 0;
+			CheckResult("Creating RDM reconstructed UAV", device->CreateUnorderedAccessView( rdmReconstructedTexture.Get(), &uav, rdmReconstructedUav.GetAddressOf() ));
+			D3D11_SHADER_RESOURCE_VIEW_DESC svd;
+			svd.Format = TranslateTypelessFormats(format);
+			svd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			svd.Texture2D.MostDetailedMip = 0;
+			svd.Texture2D.MipLevels = 1;
+			CheckResult("Creating RDM reconstructed view", device->CreateShaderResourceView( rdmReconstructedTexture.Get(), &svd, rdmReconstructedView.GetAddressOf() ));
+
+		} else {
+			CheckResult("Creating HRM masking shader", device->CreatePixelShader( g_HRM_MaskShader, sizeof( g_HRM_MaskShader ), nullptr, hrmMaskingShader.GetAddressOf() ));
+		}
 
 		D3D11_DEPTH_STENCIL_DESC dsd;
 		dsd.DepthEnable = TRUE;
@@ -219,6 +277,12 @@ namespace vrperfkit {
 		bd.ByteWidth = sizeof(RdmMaskingConstants);
 		CheckResult("Creating HRM masking constants buffer", device->CreateBuffer( &bd, nullptr, hrmMaskingConstantsBuffer[0].GetAddressOf() ));
 		CheckResult("Creating HRM masking constants buffer", device->CreateBuffer( &bd, nullptr, hrmMaskingConstantsBuffer[1].GetAddressOf() ));
+
+		if (is_rdm) {
+			bd.ByteWidth = sizeof(RdmReconstructConstants);
+			CheckResult("Creating RDM reconstruct constants buffer", device->CreateBuffer( &bd, nullptr, rdmReconstructConstantsBuffer[0].GetAddressOf() ));
+			CheckResult("Creating RDM reconstruct constants buffer", device->CreateBuffer( &bd, nullptr, rdmReconstructConstantsBuffer[1].GetAddressOf() ));
+		}
 	}
 
 	bool D3D11PostProcessor::HasBlacklistedTextureName(ID3D11Texture2D *tex) {
@@ -277,7 +341,7 @@ namespace vrperfkit {
 		return depthStencilViews[depthStencilTex].view[eye].Get();
 	}
 
-	void D3D11PostProcessor::ApplyHiddenRadialMask(ID3D11Texture2D *depthStencilTex, float depth, uint8_t stencil) {
+	void D3D11PostProcessor::ApplyRadialDensityMask(ID3D11Texture2D *depthStencilTex, float depth, uint8_t stencil) {
 		if (HasBlacklistedTextureName(depthStencilTex)) {
 			return;
 		}
@@ -290,8 +354,15 @@ namespace vrperfkit {
 
 		vr::EVREye currentEye = vr::Eye_Left;
 		
-		if (depthClearCount <= g_config.hiddenMask.ignoreFirstTargetRenders) {
+		if (depthClearCount <= ignoreFirstTargetRenders || (ignoreLastTargetRenders > 0 && depthClearCount > depthClearCountMax - ignoreLastTargetRenders)) {
+			if (g_config.ffrFastModeUsesHRMCount) {
+				g_config.ffrApplyFastMode = false;
+			}
 			return;
+		}
+
+		if (g_config.ffrFastModeUsesHRMCount) {
+			g_config.ffrApplyFastMode = true;
 		}
 
 		if (g_config.gameMode == GameMode::LEFT_EYE_FIRST) {
@@ -355,7 +426,11 @@ namespace vrperfkit {
 		context->PSGetConstantBuffers( 0, 1, psConstantBuffer.GetAddressOf() );
 		
 		context->VSSetShader( hrmFullTriVertexShader.Get(), nullptr, 0 );
-		context->PSSetShader( hrmMaskingShader.Get(), nullptr, 0 );
+		if (is_rdm) {
+			context->PSSetShader( rdmMaskingShader.Get(), nullptr, 0 );
+		} else {
+			context->PSSetShader( hrmMaskingShader.Get(), nullptr, 0 );
+		}
 		context->IASetInputLayout( nullptr );
 		context->IASetPrimitiveTopology( D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 		context->IASetVertexBuffers( 0, 0, nullptr, nullptr, nullptr );
@@ -366,10 +441,12 @@ namespace vrperfkit {
 
 		RdmMaskingConstants constants;
 		constants.depthOut = 1.f - depth;
-		//constants.radius[0] = g_config.hiddenMask.radius;
-		//constants.radius[1] = g_config.hiddenMask.radius;
-		//constants.radius[2] = g_config.hiddenMask.radius;
-		constants.edgeRadius = g_config.hiddenMask.radius;
+		if (is_rdm) {
+			constants.radius[0] = g_config.ffr.innerRadius;
+			constants.radius[1] = g_config.ffr.midRadius;
+			constants.radius[2] = g_config.ffr.outerRadius;
+		}
+		constants.edgeRadius = edgeRadius;
 		constants.invClusterResolution[0] = 8.f / renderWidth;
 		constants.invClusterResolution[1] = 8.f / renderHeight;
 		constants.projectionCenter[0] = projX[currentEye];
@@ -438,6 +515,40 @@ namespace vrperfkit {
 		
 	}
 
+	void D3D11PostProcessor::ReconstructRdmRender(const D3D11PostProcessInput &input) {
+		context->CSSetShader( rdmReconstructShader.Get(), nullptr, 0 );
+		ID3D11Buffer *emptyBind[] = {nullptr};
+		context->CSSetConstantBuffers( 0, 1, emptyBind );
+
+		RdmReconstructConstants constants;
+		constants.offset[0] = input.inputViewport.x;
+		constants.offset[1] = input.inputViewport.y;
+		constants.projectionCenter[0] = projX[input.eye];
+		constants.projectionCenter[1] = projY[input.eye];
+		constants.invResolution[0] = 1.f / textureWidth;
+		constants.invResolution[1] = 1.f / textureHeight;
+		constants.invClusterResolution[0] = 8.f / input.inputViewport.width;
+		constants.invClusterResolution[1] = 8.f / input.inputViewport.height;
+		constants.radius[0] = g_config.ffr.innerRadius;
+		constants.radius[1] = g_config.ffr.midRadius;
+		constants.radius[2] = g_config.ffr.outerRadius;
+		constants.edgeRadius = edgeRadius;
+		if (g_config.gameMode == GameMode::GENERIC_SINGLE && input.eye == vr::Eye_Right) {
+			constants.projectionCenter[0] += 1.f;
+		}
+		D3D11_MAPPED_SUBRESOURCE mapped { nullptr, 0, 0 };
+		context->Map( rdmReconstructConstantsBuffer[input.eye].Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped );
+		memcpy(mapped.pData, &constants, sizeof(constants));
+		context->Unmap( rdmReconstructConstantsBuffer[input.eye].Get(), 0 );
+		UINT uavCount = -1;
+		context->CSSetUnorderedAccessViews( 0, 1, rdmReconstructedUav.GetAddressOf(), &uavCount );
+		context->CSSetConstantBuffers( 0, 1, rdmReconstructConstantsBuffer[input.eye].GetAddressOf() );
+		ID3D11ShaderResourceView *srvs[1] = {input.inputView};
+		context->CSSetShaderResources( 0, 1, srvs );
+		context->CSSetSamplers(0, 1, sampler.GetAddressOf());
+		context->Dispatch( (input.inputViewport.width + 7) / 8, (input.inputViewport.height + 7) / 8, 1 );
+	}
+
 	bool D3D11PostProcessor::Apply(const D3D11PostProcessInput &input, Viewport &outputViewport) {
 		bool didPostprocessing = false;
 /*
@@ -446,11 +557,7 @@ namespace vrperfkit {
 		}
 */
 
-		g_config.renderingSecondEye = !g_config.renderingSecondEye;
-		g_config.ffrDepthClearCount = 0;
-		depthClearCount = 0;
-
-		if (g_config.hiddenMask.enabled) {
+		if (g_config.hiddenMask.enabled || is_rdm) {
 			if (!hrmInitialized) {
 				try {
 					PrepareResources(input.inputTexture);
@@ -460,7 +567,7 @@ namespace vrperfkit {
 				}
 			}
 		}
-
+		
 		if (g_config.upscaling.enabled) {
 			try {
 				D3D11State previousState;
@@ -481,6 +588,12 @@ namespace vrperfkit {
 						outputViewport.x += outputViewport.width;
 					}
 				}
+
+				if (is_rdm) {
+					ReconstructRdmRender(input);
+					context->CopyResource(input.inputTexture, rdmReconstructedTexture.Get());
+				}
+			
 				upscaler->Upscale(input, outputViewport);
 
 				float newLodBias = -log2f(outputViewport.width / (float)input.inputViewport.width);
@@ -500,6 +613,12 @@ namespace vrperfkit {
 				g_config.upscaling.enabled = false;
 			}
 		}
+
+		g_config.renderingSecondEye = !g_config.renderingSecondEye;
+		g_config.ffrRenderTargetCountMax = g_config.ffrRenderTargetCount;
+		g_config.ffrRenderTargetCount = 0;
+		depthClearCountMax = depthClearCount;
+		depthClearCount = 0;
 
 		if (enableDynamic && (g_config.renderingSecondEye || g_config.gameMode == GameMode::GENERIC_SINGLE)) {
 			EndDynamicProfiling();
@@ -625,16 +744,16 @@ namespace vrperfkit {
 				if (g_config.hiddenMask.dynamic) {
 					if (frameTime > g_config.hiddenMask.targetFrameTime) {
 						if (g_config.hiddenMask.dynamicChangeRadius) {
-							if ((g_config.hiddenMask.radius - g_config.hiddenMask.decreaseRadiusStep) >= g_config.hiddenMask.minRadius) {
-								g_config.hiddenMask.radius -= g_config.hiddenMask.decreaseRadiusStep;
+							if ((edgeRadius - g_config.hiddenMask.decreaseRadiusStep) >= g_config.hiddenMask.minRadius) {
+								edgeRadius -= g_config.hiddenMask.decreaseRadiusStep;
 							}
 						} else {
 							hiddenMaskApply = true;
 						}
 					} else if (frameTime < g_config.hiddenMask.marginFrameTime) {
 						if (g_config.hiddenMask.dynamicChangeRadius) {
-							if ((g_config.hiddenMask.radius + g_config.hiddenMask.increaseRadiusStep) <= g_config.hiddenMask.maxRadius) {
-								g_config.hiddenMask.radius += g_config.hiddenMask.increaseRadiusStep;
+							if ((edgeRadius + g_config.hiddenMask.increaseRadiusStep) <= g_config.hiddenMask.maxRadius) {
+								edgeRadius += g_config.hiddenMask.increaseRadiusStep;
 							}
 						} else {
 							hiddenMaskApply = false;
