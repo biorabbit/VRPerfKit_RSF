@@ -142,6 +142,7 @@ namespace vrperfkit {
 			ffr.preciseResolution = ffrCfg["preciseResolution"].as<bool>(ffr.preciseResolution);
 			ffr.ignoreFirstTargetRenders = ffrCfg["ignoreFirstTargetRenders"].as<int>(ffr.ignoreFirstTargetRenders);
 			ffr.ignoreLastTargetRenders = ffrCfg["ignoreLastTargetRenders"].as<int>(ffr.ignoreLastTargetRenders);
+			ffr.renderOnlyTarget = ffrCfg["renderOnlyTarget"].as<int>(ffr.renderOnlyTarget);
 			ffr.maxRadius = ffr.innerRadius;
 			ffr.overrideSingleEyeOrder = ffrCfg["overrideSingleEyeOrder"].as<std::string>(ffr.overrideSingleEyeOrder);
 			ffr.fastMode = ffrCfg["fastMode"].as<bool>(ffr.fastMode);
@@ -165,6 +166,7 @@ namespace vrperfkit {
 			hiddenMask.preciseResolution = hiddenMaskCfg["preciseResolution"].as<bool>(hiddenMask.preciseResolution);
 			hiddenMask.ignoreFirstTargetRenders = hiddenMaskCfg["ignoreFirstTargetRenders"].as<int>(hiddenMask.ignoreFirstTargetRenders);
 			hiddenMask.ignoreLastTargetRenders = hiddenMaskCfg["ignoreLastTargetRenders"].as<int>(hiddenMask.ignoreLastTargetRenders);
+			hiddenMask.renderOnlyTarget = hiddenMaskCfg["renderOnlyTarget"].as<int>(hiddenMask.renderOnlyTarget);
 			hiddenMask.dynamic = hiddenMaskCfg["dynamic"].as<bool>(hiddenMask.dynamic);
 			hiddenMask.targetFrameTime = 1.f / hiddenMaskCfg["targetFPS"].as<float>(hiddenMask.targetFrameTime);
 			hiddenMask.marginFrameTime = 1.f / hiddenMaskCfg["marginFPS"].as<float>(hiddenMask.marginFrameTime);
@@ -240,6 +242,7 @@ namespace vrperfkit {
 			LOG_INFO << "    * Precise res:   " << PrintToggle(g_config.ffr.preciseResolution);
 			LOG_INFO << "    * No first rend: " << std::setprecision(6) << g_config.ffr.ignoreFirstTargetRenders;
 			LOG_INFO << "    * No last rend:  " << std::setprecision(6) << g_config.ffr.ignoreLastTargetRenders;
+			LOG_INFO << "    * Render only:   " << std::setprecision(6) << g_config.ffr.renderOnlyTarget;
 			LOG_INFO << "    * Fast mode:     " << PrintToggle(g_config.ffr.fastMode);
 			if (g_config.ffr.fastMode) {
 				LOG_INFO << "      * HRM counter: " << PrintToggle(g_config.ffrFastModeUsesHRMCount);
@@ -270,6 +273,7 @@ namespace vrperfkit {
 			LOG_INFO << "    * Precise res:   " << PrintToggle(g_config.hiddenMask.preciseResolution);
 			LOG_INFO << "    * No first rend: " << std::setprecision(6) << g_config.hiddenMask.ignoreFirstTargetRenders;
 			LOG_INFO << "    * No last rend:  " << std::setprecision(6) << g_config.hiddenMask.ignoreLastTargetRenders;
+			LOG_INFO << "    * Render only:   " << std::setprecision(6) << g_config.hiddenMask.renderOnlyTarget;
 			LOG_INFO << "    * Dynamic:       " << PrintToggle(g_config.hiddenMask.dynamic);
 			if (g_config.hiddenMask.dynamic) {
 				LOG_INFO << "      * Target FPS:  " << std::setprecision(6) << (1.f / g_config.hiddenMask.targetFrameTime);

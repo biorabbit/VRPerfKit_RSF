@@ -90,6 +90,7 @@ namespace vrperfkit {
 		active = true;
 		ignoreFirstTargetRenders = g_config.ffr.ignoreFirstTargetRenders;
 		ignoreLastTargetRenders = g_config.ffr.ignoreLastTargetRenders;
+		renderOnlyTarget = g_config.ffr.renderOnlyTarget;
 		LOG_INFO << "Successfully initialized NVAPI; Variable Rate Shading is available.";
 	}
 
@@ -163,6 +164,11 @@ namespace vrperfkit {
 
 		if (!g_config.ffrFastModeUsesHRMCount) {
 			++g_config.ffrRenderTargetCount;
+
+			if ((renderOnlyTarget > 0 && renderOnlyTarget != g_config.ffrRenderTargetCount) || (renderOnlyTarget < 0 && g_config.ffrRenderTargetCountMax + 1 + renderOnlyTarget != g_config.ffrRenderTargetCount)) {
+				DisableVRS();
+				return;
+			}
 
 			if (g_config.ffrRenderTargetCount < ignoreFirstTargetRenders || (ignoreLastTargetRenders > 0 && g_config.ffrRenderTargetCount > g_config.ffrRenderTargetCountMax - ignoreLastTargetRenders)) {
 				DisableVRS();

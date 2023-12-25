@@ -25,6 +25,7 @@ namespace vrperfkit {
 
 		int ignoreFirstTargetRenders = 0;
 		int ignoreLastTargetRenders = 0;
+		int renderOnlyTarget = 0;
 
 		int targetWidth = 1000000;
 		int targetHeight = 1000000;

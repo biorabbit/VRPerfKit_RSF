@@ -1,3 +1,7 @@
+# =============================== #
+# VR Performance Toolkit RSF v3.1 #
+# =============================== #
+
 # dxgi.dll: If game uses its own dxgi.dll or other post-processor library, like
 # Reshade (reshade.me), rename current "dxgi.dll" file to "dxgi_ori.dll" before copying
 # dxgi.dll file from this VR Performance Toolkit. dxgi_ori.dll file will be lodaded
@@ -25,7 +29,7 @@ upscaling:
   # If you set a value higher than 100 for renderScale, then the game will render at the native 
   # resolution, i.e. the one configured in SteamVR. But FSR/NIS/CAS will then take this render and 
   # upscale it to a resolution increased by the value of renderScale percentage.
-  renderScale: 70
+  renderScale: 70.0
 
   # Configure how much the image is sharpened during upscaling.
   # This parameter works differently for each of the upscaling methods, so you
@@ -95,6 +99,10 @@ fixedFoveated:
   # Some games requires to disable it.
   preciseResolution: true
 
+  # If not 0, FFR will be applied only to specific render target. Using a negative value will cause that
+  # used target will be count from last. For example, -1 will be applied to the last target.
+  renderOnlyTarget: 0
+
   # FFR will not be applied to first and last specified target renders. Some games needs to skip
   # some target renders to avoid crashes. This is different from HRM option. Target renders from VSR mode
   # are different to RDM mode target renders.
@@ -147,6 +155,10 @@ hiddenMask:
   # Only applies HRM to target renders that matches equal resolution than final render.
   # Some games requires to disable it.
   preciseResolution: true
+
+  # If not 0, FFR will be applied only to specific render target. Using a negative value will cause that
+  # used target will be count from last. For example, -1 will be applied to the last target.
+  renderOnlyTarget: 0
 
   # HRM will not be applied to first specified target renders. Some games needs to skip
   # some target renders to avoid crashes. This is different from FFR option.

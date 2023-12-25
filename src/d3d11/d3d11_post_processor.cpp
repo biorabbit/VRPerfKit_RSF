@@ -24,12 +24,14 @@ namespace vrperfkit {
 			preciseResolution = g_config.ffr.preciseResolution;
 			ignoreFirstTargetRenders = g_config.ffr.ignoreFirstTargetRenders;
 			ignoreLastTargetRenders = g_config.ffr.ignoreLastTargetRenders;
+			renderOnlyTarget = g_config.ffr.renderOnlyTarget;
 			edgeRadius = g_config.ffr.edgeRadius;
 		} else {
 			hiddenMaskApply = g_config.hiddenMask.enabled;
 			preciseResolution = g_config.hiddenMask.preciseResolution;
 			ignoreFirstTargetRenders = g_config.hiddenMask.ignoreFirstTargetRenders;
 			ignoreLastTargetRenders = g_config.hiddenMask.ignoreLastTargetRenders;
+			renderOnlyTarget = g_config.hiddenMask.renderOnlyTarget;
 			edgeRadius = g_config.hiddenMask.edgeRadius;
 		}
 
@@ -354,6 +356,13 @@ namespace vrperfkit {
 
 		vr::EVREye currentEye = vr::Eye_Left;
 		
+		if ((renderOnlyTarget > 0 && renderOnlyTarget != depthClearCount) || (renderOnlyTarget < 0 && depthClearCountMax + 1 + renderOnlyTarget != depthClearCount)) {
+			if (g_config.ffrFastModeUsesHRMCount) {
+				g_config.ffrApplyFastMode = false;
+			}
+			return;
+		}
+
 		if (depthClearCount <= ignoreFirstTargetRenders || (ignoreLastTargetRenders > 0 && depthClearCount > depthClearCountMax - ignoreLastTargetRenders)) {
 			if (g_config.ffrFastModeUsesHRMCount) {
 				g_config.ffrApplyFastMode = false;

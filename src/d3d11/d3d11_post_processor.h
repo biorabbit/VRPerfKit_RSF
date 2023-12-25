@@ -70,6 +70,7 @@ namespace vrperfkit {
 		bool preciseResolution = false;
 		int ignoreFirstTargetRenders = 0;
 		int ignoreLastTargetRenders = 0;
+		int renderOnlyTarget = 0;
 
 		void CreateDynamicProfileQueries();
 		void StartDynamicProfiling();

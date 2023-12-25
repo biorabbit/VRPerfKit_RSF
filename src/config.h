@@ -44,6 +44,7 @@ namespace vrperfkit {
 		bool preciseResolution = true;
 		int ignoreFirstTargetRenders = 0;
 		int ignoreLastTargetRenders = 0;
+		int renderOnlyTarget = 0;
 		bool radiusChanged[2] = { true, true };
 	};
 
@@ -61,6 +62,7 @@ namespace vrperfkit {
 		bool preciseResolution = true;
 		int ignoreFirstTargetRenders = 0;
 		int ignoreLastTargetRenders = 0;
+		int renderOnlyTarget = 0;
 	};
 
 	struct Config {
