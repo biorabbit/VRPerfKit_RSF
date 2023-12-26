@@ -1,5 +1,5 @@
 # =============================== #
-# VR Performance Toolkit RSF v3.1 #
+# VR Performance Toolkit RSF v3.2 #
 # =============================== #
 
 # dxgi.dll: If game uses its own dxgi.dll or other post-processor library, like
@@ -76,7 +76,7 @@ fixedFoveated:
   # FPS to start recovering decrasing radius.
   marginFPS: 65.0
   # Change default dynamic behavior: FFR is always enabled but dynamic mode changes radius dinamically
-  dynamicChangeRadius: false
+  dynamicChangeRadius: true
   # Minimal radius: This is the minimal radius applied to innerRadius when dynamic is enabled
   minRadius: 0.30
   # Decreased radius amount applied for each frametime check when needed
@@ -141,7 +141,7 @@ hiddenMask:
   # FPS to start recovering decrasing radius.
   marginFPS: 60.0
   # Change default dynamic behavior: HRM is always enabled but dynamic mode changes radius dinamically
-  dynamicChangeRadius: false
+  dynamicChangeRadius: true
   # Minimal radius: This is the minimal radius applied when dynamic is enabled
   minRadius: 0.85
   # Decreased radius amount applied for each frametime check when needed

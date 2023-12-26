@@ -57,12 +57,9 @@ namespace vrperfkit {
 			ComPtr<ID3D11Query> queryStart;
 			ComPtr<ID3D11Query> queryEnd;
 		};
-		static const int DYNAMIC_QUERY_COUNT = 1;
-		int DynamicSleepCount = 0;
-		DynamicProfileQuery dynamicProfileQueries[DYNAMIC_QUERY_COUNT];
-		int DynamicCurrentQuery = 0;
-		float DynamicSummedGpuTime = 0.0f;
-		int DynamicCountedQueries = 0;
+		FILETIME ft;
+		unsigned int dynamicTimeUs = 0;
+		int dynamicSleepCount = 0;
 		bool is_DynamicProfiling = false;
 		bool enableDynamic = false;
 		bool hiddenMaskApply = false;
@@ -113,22 +110,5 @@ namespace vrperfkit {
 		void D3D11PostProcessor::PrepareRdmResources(DXGI_FORMAT format);
 		void D3D11PostProcessor::ApplyRadialDensityMask(ID3D11Texture2D *depthStencilTex, float depth, uint8_t stencil);
 		void D3D11PostProcessor::ReconstructRdmRender(const D3D11PostProcessInput &input);
-
-/*
-		struct ProfileQuery {
-			ComPtr<ID3D11Query> queryDisjoint;
-			ComPtr<ID3D11Query> queryStart;
-			ComPtr<ID3D11Query> queryEnd;
-		};
-		static const int QUERY_COUNT = 6;
-		ProfileQuery profileQueries[QUERY_COUNT];
-		int currentQuery = 0;
-		float summedGpuTime = 0.0f;
-		int countedQueries = 0;
-
-		void CreateProfileQueries();
-		void StartProfiling();
-		void EndProfiling();
-*/
 	};
 }

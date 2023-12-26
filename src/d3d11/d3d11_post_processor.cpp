@@ -700,102 +700,75 @@ namespace vrperfkit {
 	}
 
 
-	void D3D11PostProcessor::CreateDynamicProfileQueries() {
-		for (auto &profileQuery : dynamicProfileQueries) {
-			D3D11_QUERY_DESC qd;
-			qd.Query = D3D11_QUERY_TIMESTAMP;
-			qd.MiscFlags = 0;
-			device->CreateQuery(&qd, profileQuery.queryStart.ReleaseAndGetAddressOf());
-			device->CreateQuery(&qd, profileQuery.queryEnd.ReleaseAndGetAddressOf());
-			qd.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
-			device->CreateQuery(&qd, profileQuery.queryDisjoint.ReleaseAndGetAddressOf());
-		}
-	}
-
 	void D3D11PostProcessor::StartDynamicProfiling() {
-		++DynamicSleepCount;
-		if (DynamicSleepCount < g_config.dynamicFramesCheck) {
+		++dynamicSleepCount;
+		if (dynamicSleepCount < g_config.dynamicFramesCheck) {
 			return;
 		}
 
 		is_DynamicProfiling = true;
 
-		DynamicSleepCount = 0;
+		dynamicSleepCount = 0;
 
-		if (dynamicProfileQueries[0].queryStart == nullptr) {
-			CreateDynamicProfileQueries();
-		}
-
-		context->Begin(dynamicProfileQueries[DynamicCurrentQuery].queryDisjoint.Get());
-		context->End(dynamicProfileQueries[DynamicCurrentQuery].queryStart.Get());
+    	GetSystemTimePreciseAsFileTime(&ft);
+		dynamicTimeUs = ft.dwLowDateTime;
 	}
 
 	void D3D11PostProcessor::EndDynamicProfiling() {
 		if (is_DynamicProfiling) {
-			context->End(dynamicProfileQueries[DynamicCurrentQuery].queryEnd.Get());
-			context->End(dynamicProfileQueries[DynamicCurrentQuery].queryDisjoint.Get());
+			GetSystemTimePreciseAsFileTime(&ft);
+			const unsigned int end = ft.dwLowDateTime;
+			
+			float frameTime = (end - dynamicTimeUs) / 10000000.f;	// (1000 * 1000 * 10) FrameTime in seconds
 
-			DynamicCurrentQuery = (DynamicCurrentQuery + 1) % DYNAMIC_QUERY_COUNT;
-			while (context->GetData(dynamicProfileQueries[0].queryDisjoint.Get(), nullptr, 0, 0) == S_FALSE) {
-				Sleep(1);
-			}
-			D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
-			HRESULT result = context->GetData(dynamicProfileQueries[DynamicCurrentQuery].queryDisjoint.Get(), &disjoint, sizeof(disjoint), 0);
-			if (result == S_OK && !disjoint.Disjoint) {
-				UINT64 begin, end;
-				context->GetData(dynamicProfileQueries[DynamicCurrentQuery].queryStart.Get(), &begin, sizeof(UINT64), 0);
-				context->GetData(dynamicProfileQueries[DynamicCurrentQuery].queryEnd.Get(), &end, sizeof(UINT64), 0);
-				float frameTime = (end - begin) / float(disjoint.Frequency);	// FrameTime in seconds
+			//LOG_INFO << "frameTime: " << std::setprecision(8) << frameTime;
 
-				//LOG_INFO << "frameTime: " << std::setprecision(8) << frameTime;
-
-				// HRM
-				if (g_config.hiddenMask.dynamic) {
-					if (frameTime > g_config.hiddenMask.targetFrameTime) {
-						if (g_config.hiddenMask.dynamicChangeRadius) {
-							if ((edgeRadius - g_config.hiddenMask.decreaseRadiusStep) >= g_config.hiddenMask.minRadius) {
-								edgeRadius -= g_config.hiddenMask.decreaseRadiusStep;
-							}
-						} else {
-							hiddenMaskApply = true;
+			// HRM
+			if (g_config.hiddenMask.dynamic) {
+				if (frameTime > g_config.hiddenMask.targetFrameTime) {
+					if (g_config.hiddenMask.dynamicChangeRadius) {
+						if ((edgeRadius - g_config.hiddenMask.decreaseRadiusStep) >= g_config.hiddenMask.minRadius) {
+							edgeRadius -= g_config.hiddenMask.decreaseRadiusStep;
 						}
-					} else if (frameTime < g_config.hiddenMask.marginFrameTime) {
-						if (g_config.hiddenMask.dynamicChangeRadius) {
-							if ((edgeRadius + g_config.hiddenMask.increaseRadiusStep) <= g_config.hiddenMask.maxRadius) {
-								edgeRadius += g_config.hiddenMask.increaseRadiusStep;
-							}
-						} else {
-							hiddenMaskApply = false;
+					} else {
+						hiddenMaskApply = true;
+					}
+				} else if (frameTime < g_config.hiddenMask.marginFrameTime) {
+					if (g_config.hiddenMask.dynamicChangeRadius) {
+						if ((edgeRadius + g_config.hiddenMask.increaseRadiusStep) <= g_config.hiddenMask.maxRadius) {
+							edgeRadius += g_config.hiddenMask.increaseRadiusStep;
 						}
+					} else {
+						hiddenMaskApply = false;
 					}
 				}
+			}
 
-				// FFR
-				if (g_config.ffr.dynamic) {
-					if (frameTime > g_config.ffr.targetFrameTime) {
-						if (g_config.ffr.dynamicChangeRadius) {
-							if ((g_config.ffr.innerRadius - g_config.ffr.decreaseRadiusStep) >= g_config.ffr.minRadius) {
-								g_config.ffr.innerRadius -= g_config.ffr.decreaseRadiusStep;
-								g_config.ffr.midRadius -= g_config.ffr.decreaseRadiusStep;
-								g_config.ffr.outerRadius -= g_config.ffr.decreaseRadiusStep;
-								g_config.ffr.radiusChanged[0] = true;
-								g_config.ffr.radiusChanged[1] = true;
-							}
-						} else {
-							g_config.ffr.apply = true;
+			// FFR
+			if (g_config.ffr.dynamic) {
+				if (frameTime > g_config.ffr.targetFrameTime) {
+					if (g_config.ffr.dynamicChangeRadius) {
+						if ((g_config.ffr.innerRadius - g_config.ffr.decreaseRadiusStep) >= g_config.ffr.minRadius) {
+							g_config.ffr.innerRadius -= g_config.ffr.decreaseRadiusStep;
+							g_config.ffr.midRadius -= g_config.ffr.decreaseRadiusStep;
+							g_config.ffr.outerRadius -= g_config.ffr.decreaseRadiusStep;
+							g_config.ffr.radiusChanged[0] = true;
+							g_config.ffr.radiusChanged[1] = true;
 						}
-					} else if (frameTime < g_config.ffr.marginFrameTime) {
-						if (g_config.ffr.dynamicChangeRadius) {
-							if ((g_config.ffr.innerRadius + g_config.ffr.increaseRadiusStep) <= g_config.ffr.maxRadius) {
-								g_config.ffr.innerRadius += g_config.ffr.increaseRadiusStep;
-								g_config.ffr.midRadius += g_config.ffr.increaseRadiusStep;
-								g_config.ffr.outerRadius += g_config.ffr.increaseRadiusStep;
-								g_config.ffr.radiusChanged[0] = true;
-								g_config.ffr.radiusChanged[1] = true;
-							}
-						} else {
-							g_config.ffr.apply = false;
+					} else {
+						g_config.ffr.apply = true;
+					}
+				} else if (frameTime < g_config.ffr.marginFrameTime) {
+					if (g_config.ffr.dynamicChangeRadius) {
+						if ((g_config.ffr.innerRadius + g_config.ffr.increaseRadiusStep) <= g_config.ffr.maxRadius) {
+							g_config.ffr.innerRadius += g_config.ffr.increaseRadiusStep;
+							g_config.ffr.midRadius += g_config.ffr.increaseRadiusStep;
+							g_config.ffr.outerRadius += g_config.ffr.increaseRadiusStep;
+							g_config.ffr.radiusChanged[0] = true;
+							g_config.ffr.radiusChanged[1] = true;
 						}
+					} else {
+						g_config.ffr.apply = false;
 					}
 				}
 			}
@@ -805,57 +778,4 @@ namespace vrperfkit {
 
 		StartDynamicProfiling();
 	}
-
-
-/*
-	void D3D11PostProcessor::CreateProfileQueries() {
-		for (auto &profileQuery : profileQueries) {
-			D3D11_QUERY_DESC qd;
-			qd.Query = D3D11_QUERY_TIMESTAMP;
-			qd.MiscFlags = 0;
-			device->CreateQuery(&qd, profileQuery.queryStart.ReleaseAndGetAddressOf());
-			device->CreateQuery(&qd, profileQuery.queryEnd.ReleaseAndGetAddressOf());
-			qd.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
-			device->CreateQuery(&qd, profileQuery.queryDisjoint.ReleaseAndGetAddressOf());
-		}
-	}
-
-	void D3D11PostProcessor::StartProfiling() {
-		if (profileQueries[0].queryStart == nullptr) {
-			CreateProfileQueries();
-		}
-
-		context->Begin(profileQueries[currentQuery].queryDisjoint.Get());
-		context->End(profileQueries[currentQuery].queryStart.Get());
-	}
-
-	void D3D11PostProcessor::EndProfiling() {
-		context->End(profileQueries[currentQuery].queryEnd.Get());
-		context->End(profileQueries[currentQuery].queryDisjoint.Get());
-
-		currentQuery = (currentQuery + 1) % QUERY_COUNT;
-		while (context->GetData(profileQueries[currentQuery].queryDisjoint.Get(), nullptr, 0, 0) == S_FALSE) {
-			Sleep(1);
-		}
-		D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
-		HRESULT result = context->GetData(profileQueries[currentQuery].queryDisjoint.Get(), &disjoint, sizeof(disjoint), 0);
-		if (result == S_OK && !disjoint.Disjoint) {
-			UINT64 begin, end;
-			context->GetData(profileQueries[currentQuery].queryStart.Get(), &begin, sizeof(UINT64), 0);
-			context->GetData(profileQueries[currentQuery].queryEnd.Get(), &end, sizeof(UINT64), 0);
-			float duration = (end - begin) / float(disjoint.Frequency);
-			summedGpuTime += duration;
-			++countedQueries;
-
-			if (countedQueries >= 500) {
-				float avgTimeMs = 1000.f / countedQueries * summedGpuTime;
-				// Queries are done per eye, but we want the average for both eyes per frame
-				avgTimeMs *= 2;
-				LOG_INFO << "Average GPU processing time for post-processing: " << avgTimeMs << " ms";
-				countedQueries = 0;
-				summedGpuTime = 0.f;
-			}
-		}
-	}
-*/
 }
