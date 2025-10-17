@@ -139,6 +139,7 @@ namespace vrperfkit {
 			ffr.midRadius = ffrCfg["midRadius"].as<float>(ffr.midRadius);
 			ffr.outerRadius = ffrCfg["outerRadius"].as<float>(ffr.outerRadius);
 			ffr.edgeRadius = ffrCfg["edgeRadius"].as<float>(ffr.edgeRadius);
+			ffr.verticalOffset = ffrCfg["verticalOffset"].as<float>(ffr.verticalOffset);
 			ffr.preciseResolution = ffrCfg["preciseResolution"].as<bool>(ffr.preciseResolution);
 			ffr.ignoreFirstTargetRenders = ffrCfg["ignoreFirstTargetRenders"].as<int>(ffr.ignoreFirstTargetRenders);
 			ffr.ignoreLastTargetRenders = ffrCfg["ignoreLastTargetRenders"].as<int>(ffr.ignoreLastTargetRenders);
