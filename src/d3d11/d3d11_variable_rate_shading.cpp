@@ -23,21 +23,24 @@ namespace vrperfkit {
 		return actualSize >= targetSize && actualSize <= targetSize + 2;
 	}
 
-	std::vector<uint8_t> CreateCombinedFixedFoveatedVRSPattern( int width, int height, float leftProjX, float leftProjY, float rightProjX, float rightProjY ) {
-		std::vector<uint8_t> data (width * height);
+	std::vector<uint8_t> CreateCombinedFixedFoveatedVRSPattern(int width, int height, float leftProjX, float leftProjY, float rightProjX, float rightProjY) {
+		std::vector<uint8_t> data(width * height);
 		int halfWidth = width / 2;
 
 		for (int y = 0; y < height; ++y) {
 			for (int x = 0; x < halfWidth; ++x) {
 				float fx = float(x) / halfWidth;
 				float fy = float(y) / height;
-				float distance = 2 * sqrtf((fx - leftProjX) * (fx - leftProjX) + (fy - leftProjY) * (fy - leftProjY));
+				float distance = 2 * sqrtf((fx - leftProjX) * (fx - leftProjX) + (fy - leftProjY - g_config.ffr.verticalOffset) *
+																					 (fy - leftProjY - g_config.ffr.verticalOffset)); //<----------modified this
 				data[y * width + x] = DistanceToVRSLevel(distance);
 			}
 			for (int x = halfWidth; x < width; ++x) {
 				float fx = float(x - halfWidth) / halfWidth;
 				float fy = float(y) / height;
-				float distance = 2 * sqrtf((fx - rightProjX) * (fx - rightProjX) + (fy - rightProjY) * (fy - rightProjY));
+				float distance =
+					2 * sqrtf((fx - rightProjX) * (fx - rightProjX) +
+							  (fy - rightProjY - g_config.ffr.verticalOffset) * (fy - rightProjY - g_config.ffr.verticalOffset)); //<----------modified this
 				data[y * width + x] = DistanceToVRSLevel(distance);
 			}
 		}
@@ -45,14 +48,15 @@ namespace vrperfkit {
 		return data;
 	}
 
-	std::vector<uint8_t> CreateSingleEyeFixedFoveatedVRSPattern( int width, int height, float projX, float projY ) {
-		std::vector<uint8_t> data (width * height);
+	std::vector<uint8_t> CreateSingleEyeFixedFoveatedVRSPattern(int width, int height, float projX, float projY) {
+		std::vector<uint8_t> data(width * height);
 
 		for (int y = 0; y < height; ++y) {
 			for (int x = 0; x < width; ++x) {
 				float fx = float(x) / width;
 				float fy = float(y) / height;
-				float distance = 2 * sqrtf((fx - projX) * (fx - projX) + (fy - projY) * (fy - projY));
+				float distance = 2 * sqrtf((fx - projX) * (fx - projX) +
+										   (fy - projY - g_config.ffr.verticalOffset) * (fy - projY - g_config.ffr.verticalOffset)); //<----------modified this
 				data[y * width + x] = DistanceToVRSLevel(distance);
 			}
 		}
